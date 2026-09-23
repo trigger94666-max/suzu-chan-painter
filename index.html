@@ -133,6 +133,45 @@
              background:#243040;font-size:11px;font-family:ui-monospace,Consolas,monospace}
   #psel span i{cursor:pointer;color:var(--dim);font-style:normal;padding:0 3px;border-radius:4px}
   #psel span i:hover{color:var(--bad);background:#00000040}
+  /* ── 预设：用户自己维护的 prompt 片段 · 可折叠 · 默认收起 ── */
+  #presetbox{flex:0 0 auto;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:6px;
+             background:linear-gradient(180deg,rgba(79,179,232,.045),rgba(255,255,255,.01))}
+  #phead{display:flex;align-items:center;gap:7px;padding:7px 10px;cursor:pointer;
+         font-size:12px;color:var(--dim);user-select:none}
+  #phead:hover{color:var(--fg)}
+  #phead .pcar{font-size:10px;transition:transform .16s;display:inline-block}
+  #presetbox.open #phead .pcar{transform:rotate(90deg)}
+  #phead b{color:var(--fg);font-weight:600}
+  #pbody{border-top:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:7px}
+  #plist{display:flex;flex-wrap:wrap;gap:5px;align-items:flex-start}
+  .pchip{display:inline-flex;align-items:center;gap:3px;padding:3px 4px 3px 9px;border-radius:7px;
+         border:1px solid var(--line);background:#111925;color:var(--fg);font-size:12px;cursor:pointer;
+         user-select:none;white-space:nowrap;transition:border-color .12s,background .12s}
+  .pchip:hover{border-color:var(--accent);background:#16222f}
+  .pchip.on{border-color:var(--accent);background:#16222f}
+  .pchip i{font-style:normal;color:var(--dim);font-size:11px;padding:0 3px;border-radius:4px}
+  .pchip i:hover{color:var(--accent);background:#00000040}
+  #pnew{padding:3px 10px;border-radius:7px;border:1px dashed var(--line2);background:transparent;
+        color:var(--dim);font-size:12px;cursor:pointer;font-family:inherit}
+  #pnew:hover{color:var(--accent);border-color:var(--accent)}
+  #pedit{border:1px solid var(--line2);border-radius:9px;padding:8px;background:#0f1620;
+         display:flex;flex-direction:column;gap:7px}
+  #pedit .prow{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+  #pedit input[type=text]{flex:1 1 60px;min-width:0;font-size:12px;padding:4px 8px}
+  #pedit .prow button{flex:0 0 auto}
+  .pchips{display:flex;flex-wrap:wrap;gap:4px;align-items:center;align-content:flex-start;
+          max-height:26vh;overflow-y:auto;padding:1px}
+  .ptag{display:inline-flex;align-items:center;gap:2px;padding:2px 3px 2px 6px;border-radius:6px;
+        border:1px solid var(--line);background:#141d29;font-size:11px}
+  .ptag input{background:transparent;border:0;outline:none;color:var(--fg);font-size:11px;padding:1px 0;
+              font-family:ui-monospace,Consolas,monospace}
+  .ptag b{color:var(--dim);cursor:pointer;font-weight:400;padding:0 3px;font-size:12px}
+  .ptag b:hover{color:var(--bad)}
+  .ptagadd{display:inline-flex;align-items:center;padding:2px 6px;border-radius:6px;
+           border:1px dashed var(--line2);font-size:11px}
+  .ptagadd input{background:transparent;border:0;outline:none;color:var(--fg);font-size:11px;width:92px;
+                 padding:1px 0;font-family:inherit}
+  .ptagadd input::placeholder{color:var(--dim)}
   #psel .ph{background:none;color:var(--dim);font-family:inherit;padding-left:0}
 </style>
 </head>
@@ -207,6 +246,15 @@
       <div class="pfoot">
         <div id="psel"></div>
         <button id="papply" style="flex:0 0 auto;padding:6px 11px;font-size:12px">↳ 加入提示词</button>
+      </div>
+    </div>
+
+    <div id="presetbox">
+      <div id="phead"><span class="pcar">▸</span><b>预设</b><span class="hint" id="pcount" style="display:inline"></span>
+        <span class="hint" style="display:inline;margin-left:auto">点一下 → 拼进光标那行</span></div>
+      <div id="pbody" hidden>
+        <div id="plist"></div>
+        <div id="pedit" hidden></div>
       </div>
     </div>
 
@@ -345,6 +393,7 @@ function tagPick(i){
 TAGTA.addEventListener("input",()=>{ clearTimeout(tagTimer); tagTimer=setTimeout(tagQuery,160); });
 TAGTA.addEventListener("keydown",e=>{
   if(TAGBOX.hidden) return;
+  if(e.key==="Enter" && e.shiftKey){ tagHide(); return; }   // Shift+Enter = 强制换行，不被候选吃掉
   if(e.key==="ArrowDown"){ e.preventDefault(); tagSel=Math.min(tagSel+1,tagItems.length-1); tagMark(); }
   else if(e.key==="ArrowUp"){ e.preventDefault(); tagSel=Math.max(tagSel-1,0); tagMark(); }
   else if(e.key==="Enter"||e.key==="Tab"){ e.preventDefault(); tagPick(tagSel); }
@@ -364,6 +413,31 @@ function updRun(){
 }
 TAGTA.addEventListener("input",updRun);
 $("#perprompt").addEventListener("input",updRun);
+/* ---------- 预设：折叠 + 点用 + 编辑 ---------- */
+$("#phead").onclick=()=>{
+  const box=$("#presetbox"), open=!box.classList.contains("open");
+  box.classList.toggle("open",open); $("#pbody").hidden=!open;
+};
+$("#plist").onclick=e=>{
+  if(e.target.closest("#pnew")) return savePresetFromBox();
+  const ed=e.target.closest("i[data-edit]");
+  if(ed){ e.stopPropagation(); return toggleEdit(ed.dataset.edit); }
+  const c=e.target.closest(".pchip");
+  if(c) usePreset(c.dataset.p);
+};
+$("#pedit").onclick=e=>{
+  if(e.target.closest("b[data-del]")){ e.target.closest(".ptag").remove(); return; }
+  const act=e.target.closest("[data-act]"); if(!act) return;
+  const a=act.dataset.act;
+  if(a==="save") return saveEdit();
+  if(a==="cancel") return toggleEdit(null);
+  if(a==="drop") return dropPreset();
+};
+$("#pedit").addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&e.target.classList.contains("pin")){
+    e.preventDefault(); addTagChip(e.target.value); e.target.value="";
+  }
+});
 
 /* ---------- 跑 ---------- */
 async function run(){
@@ -441,7 +515,105 @@ $("#bigload").onclick=async()=>{
   $("#big").style.display="none";
 };
 
+/* ---------- 预设（可折叠 · 自己维护 · 点一下拼进光标那行）---------- */
+let PRESETS=[], PEDIT=null;
+async function loadPresets(){
+  try{ PRESETS=(await jget("/api/presets")).items||[]; }catch(e){ PRESETS=[]; }
+  renderPresets();
+}
+function renderPresets(){
+  $("#pcount").textContent = PRESETS.length ? "（"+PRESETS.length+"）" : "";
+  $("#plist").innerHTML = PRESETS.map(c=>
+    `<span class="pchip${PEDIT===c.id?" on":""}" data-p="${c.id}" title="${esc(c.tags||"")}">${esc(c.name)}<i data-edit="${c.id}" title="编辑这个预设">✎</i></span>`
+  ).join("") + `<button id="pnew" title="把提示词框里框选的一段存成预设（没框选就取光标那一行）">+ 存当前</button>`;
+}
+/* 核心：把 text 拼进提示词框「光标所在的那一行」，逗号接上（不新开一行）*/
+function applyToCursorLine(text){
+  const ta=$("#prompts"), v=ta.value;
+  const pos = ta.selectionStart ?? v.length;
+  const ls = v.lastIndexOf("\n", pos-1)+1;
+  let le = v.indexOf("\n", pos); if(le<0) le=v.length;
+  const line = v.slice(ls,le);
+  const joined = line.trim() ? line.replace(/\s+$/,"")+", "+text : text;
+  ta.value = v.slice(0,ls)+joined+v.slice(le);
+  const caret = ls+joined.length;
+  ta.focus(); ta.setSelectionRange(caret,caret); updRun();
+}
+async function usePreset(pid){
+  const c=PRESETS.find(x=>x.id===pid); if(!c) return;
+  applyToCursorLine(c.tags);
+  try{ await jpost("/api/presets/touch",{id:pid}); }catch(e){}
+  c.used=(c.used||0)+1; renderPresets();
+  log("已拼入预设："+c.name);
+}
+/* 存预设：有框选存框选，没框选存光标那一行（像浏览器搜索框）*/
+function pickFromBox(){
+  const ta=$("#prompts"), v=ta.value;
+  if(ta.selectionStart!==ta.selectionEnd){
+    return {text:v.slice(ta.selectionStart,ta.selectionEnd).replace(/\s*\n\s*/g,", ").trim(), what:"框选的一段"};
+  }
+  const pos=ta.selectionStart;
+  const ls=v.lastIndexOf("\n",pos-1)+1;
+  let le=v.indexOf("\n",pos); if(le<0) le=v.length;
+  return {text:v.slice(ls,le).trim(), what:"光标那一行"};
+}
+async function savePresetFromBox(){
+  const p=pickFromBox();
+  if(!p.text) return log("提示词框里没东西可存——先写一段，或框选一段。");
+  const name=(prompt("存成预设（取自"+p.what+"）\n\n给它起个名字：","")||"").trim();
+  if(!name) return;
+  const r=await jpost("/api/presets",{name,tags:p.text});
+  if(r.ok){ log("已存预设「"+name+"」，下面就能逐条改。"); await loadPresets(); toggleEdit(r.id); }
+  else log("存失败："+(r.error||""));
+}
+function splitTags(s){ return (s||"").split(/[,\uFF0C\n]/).map(x=>x.trim()).filter(Boolean); }
+function tagChip(t){
+  const w=[...String(t)].reduce((n,ch)=>n+(ch.charCodeAt(0)>255?2:1),0);
+  return `<span class="ptag"><input class="pt" value="${esc(t)}" size="${Math.max(4,Math.min(40,w+1))}"><b data-del="1" title="删掉这条">×</b></span>`;
+}
+function addTagChip(v){
+  splitTags(v).forEach(t=>$("#pchips").insertAdjacentHTML("beforeend", tagChip(t)));
+}
+function toggleEdit(pid){
+  PEDIT = (pid && pid!==PEDIT) ? pid : null;
+  renderPresets();
+  const box=$("#presetbox"), ed=$("#pedit");
+  if(!PEDIT){ ed.hidden=true; ed.innerHTML=""; return; }
+  const c=PRESETS.find(x=>x.id===PEDIT);
+  if(!c){ PEDIT=null; ed.hidden=true; ed.innerHTML=""; return; }
+  if(!box.classList.contains("open")){ box.classList.add("open"); $("#pbody").hidden=false; }
+  ed.hidden=false;
+  ed.innerHTML =
+    `<div class="prow"><span class="hint" style="display:inline;flex:0 0 auto">名字</span>
+       <input type="text" id="pname" value="${esc(c.name)}" placeholder="预设名">
+       <button class="ghost" data-act="drop" title="删掉这个预设">删除</button></div>
+     <div class="pchips" id="pchips">${splitTags(c.tags).map(tagChip).join("")}
+       <span class="ptagadd"><input class="pin" placeholder="+ 加一条"></span></div>
+     <div class="prow"><span class="hint" style="display:inline">逗号分隔 · 每条一个 tag · 改完点保存</span>
+       <span style="flex:1 1 auto"></span>
+       <button class="ghost" data-act="cancel">取消</button>
+       <button data-act="save">保存</button></div>`;
+  const nm=ed.querySelector("#pname"); nm.focus(); nm.select();
+}
+async function saveEdit(){
+  const c=PRESETS.find(x=>x.id===PEDIT); if(!c) return;
+  const name=($("#pname").value||"").trim();
+  if(!name) return log("名字不能空。");
+  const tags=[...$("#pchips").querySelectorAll("input.pt")].map(i=>i.value.trim()).filter(Boolean).join(", ");
+  if(!tags) return log("至少留一条 tag。");
+  const r=await jpost("/api/presets",{id:c.id,name,tags});
+  if(r.ok){ log("已更新预设：「"+name+"」"); PEDIT=null; await loadPresets(); toggleEdit(null); }
+  else log("保存失败："+(r.error||""));
+}
+async function dropPreset(){
+  const c=PRESETS.find(x=>x.id===PEDIT); if(!c) return;
+  if(!confirm("删掉预设「"+c.name+"」？")) return;
+  await jpost("/api/presets/delete",{id:c.id});
+  log("已删除预设："+c.name); PEDIT=null; await loadPresets(); toggleEdit(null);
+}
+
 /* ---------- 提示词库 ---------- */
+
 async function loadLib(){
   const d=await jget("/api/prompts");
   LIB=d.items;
@@ -647,7 +819,7 @@ $("#papply").onclick=()=>{
 /* 开工作台就先检测一次：ComfyUI 不在就唤醒（不常驻，省显存） */
 async function boot(){
   try{
-    await loadPanel(); await loadOptions(); await loadLib(); await tick();
+    await loadPresets(); await loadPanel(); await loadOptions(); await loadLib(); await tick();
     const s=await jget("/api/state?n=1");
     if(!s.alive){
       log("ComfyUI 没在跑，正在唤醒（约 20 秒）…");

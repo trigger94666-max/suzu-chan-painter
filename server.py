@@ -703,6 +703,81 @@ def store_save(d):
     os.replace(tmp, STORE)
 
 
+# ────────────────────────── 预设 ──────────────────────────
+# 用户自己维护的 prompt 片段（角色特征 / 画风 / 固定负面词 / 构图套路）。
+# 点一下拼进提示词框「光标所在的那一行」，跟已有 tag 逗号接上。
+# 数据层是通用的，不预设内容。旧文件名 characters.json 仍可读（首次保存自动迁到 presets.json）。
+PRESET_STORE = os.path.join(HERE, "presets.json")
+PRESET_STORE_LEGACY = os.path.join(HERE, "characters.json")
+
+
+def char_load():
+    for p in (PRESET_STORE, PRESET_STORE_LEGACY):
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+            if isinstance(d, dict) and isinstance(d.get("items"), list):
+                return d
+        except Exception:
+            continue
+    return {"items": []}
+
+
+def char_save(d):
+    tmp = PRESET_STORE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, PRESET_STORE)
+
+
+def char_upsert(b):
+    name = (b.get("name") or "").strip()
+    tags = (b.get("tags") or "").strip()
+    if not name or not tags:
+        raise ValueError("name 和 tags 都不能空")
+    with _lock:
+        d = char_load()
+        cid = b.get("id")
+        now = time.time()
+        for it in d["items"]:
+            if it.get("id") == cid:
+                it.update({"name": name, "tags": tags, "note": (b.get("note") or "").strip(),
+                           "neg": (b.get("neg") or "").strip(), "updated": now})
+                char_save(d)
+                return cid
+        cid = "c%d" % int(now * 1000)
+        d["items"].append({"id": cid, "name": name, "tags": tags,
+                           "note": (b.get("note") or "").strip(), "neg": (b.get("neg") or "").strip(),
+                           "used": 0, "created": now, "updated": now})
+        char_save(d)
+        return cid
+
+
+def char_delete(cid):
+    with _lock:
+        d = char_load()
+        d["items"] = [x for x in d["items"] if x.get("id") != cid]
+        char_save(d)
+
+
+def char_touch(cid):
+    with _lock:
+        d = char_load()
+        for it in d["items"]:
+            if it.get("id") == cid:
+                it["used"] = int(it.get("used") or 0) + 1
+                it["last_used"] = time.time()
+                break
+        char_save(d)
+
+
+def chars_list():
+    with _lock:
+        d = char_load()
+    items = sorted(d["items"], key=lambda x: (x.get("used", 0), x.get("created", 0)), reverse=True)
+    return {"ok": True, "items": items}
+
+
 def prompts_list():
     with _lock:
         d = store_load()
@@ -854,6 +929,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/prompts":
             return self._json(prompts_list())
 
+        if path in ("/api/presets", "/api/chars"):
+            return self._json(chars_list())
+
         if path == "/api/pnginfo":
             p = find_img(qs.get("name", [""])[0])
             return self._json(png_meta(p) if p else {})
@@ -894,6 +972,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             if u.path == "/api/prompts/import-gallery":
                 return self._json({"ok": True, "added": prompts_import_gallery(int(body.get("n", 30)))})
+            if u.path in ("/api/presets", "/api/chars"):
+                return self._json({"ok": True, "id": char_upsert(body)})
+            if u.path in ("/api/presets/delete", "/api/chars/delete"):
+                char_delete(body.get("id"))
+                return self._json({"ok": True})
+            if u.path in ("/api/presets/touch", "/api/chars/touch"):
+                char_touch(body.get("id"))
+                return self._json({"ok": True})
             if u.path == "/api/comfy-restart":
                 return self._json(comfy_restart(int(body.get("wait", 150))))
             if u.path == "/api/watchdog":

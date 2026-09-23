@@ -9,6 +9,8 @@ options_cache.json
 *.log
 *.bak-*
 config.json
+presets.json
+characters.json
 .env
 
 # 本地笔记 / 计划
