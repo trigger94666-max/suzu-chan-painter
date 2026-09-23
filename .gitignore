@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# 个人数据（绝不入库）
+prompts.json
+lora_usage.json
+options_cache.json
+*.log
+*.bak-*
+config.json
+.env
+
+# 本地笔记 / 计划
+.hermes/
+
+# 词库（走 fetch_tags.py 下载，不进仓库）
+knowledge/
+
+# comfy_batch.py 单独跑时的默认输出
+outputs/
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store

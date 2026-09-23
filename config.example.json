@@ -1,0 +1,17 @@
+{
+  "port": 8199,
+  "comfy_url": "http://127.0.0.1:8188",
+  "comfy_dir": "C:/ComfyUI",
+  "comfy_log": "",
+  "output_dir": "C:/ComfyUI/output",
+  "download_dir": "./outputs",
+  "tag_dir": "./knowledge/danbooru-tags-zh",
+  "proxy": "",
+  "prompt_help": {
+    "enabled": false,
+    "env_file": "",
+    "endpoint": "https://opencode.ai/zen/go/v1/chat/completions",
+    "model": "deepseek-v4.1-flash",
+    "key_env": "OPENCODE_GO_API_KEY"
+  }
+}

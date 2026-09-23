@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%235aa9e6'/%3E%3Ccircle cx='11' cy='14' r='2' fill='%230e1418'/%3E%3Ccircle cx='21' cy='14' r='2' fill='%230e1418'/%3E%3C/svg%3E">
+<title>铃酱跑图台</title>
+<style>
+  :root{--bg:#0c1017;--bg2:#101722;--panel:#151d29;--panel2:#121924;--line:#233044;--line2:#31435c;
+        --fg:#eef3fa;--dim:#9aabc2;--accent:#4fb3e8;--accent2:#7c6cf0;--ok:#4ec97a;--bad:#e06c75;--warn:#e5c07b}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.55 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+       display:flex;flex-direction:column;overflow:hidden}
+  /* 深海光晕（纯装饰层，不吃点击） */
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+       background:radial-gradient(1100px 560px at 82% -12%,rgba(79,179,232,.13),transparent 62%),
+                  radial-gradient(900px 480px at 2% 108%,rgba(124,108,240,.09),transparent 62%)}
+  header,main{position:relative;z-index:1}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#28374b;border-radius:9px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:#3b5271;background-clip:padding-box}
+  header{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,rgba(21,29,41,.94),rgba(16,23,34,.9));backdrop-filter:blur(10px)}
+  h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.4px;
+     background:linear-gradient(92deg,#eef3fa 18%,#67c2f0 62%,#8f7cf5);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  h1::before{content:"🐋";font-size:13px;margin-right:2px;-webkit-text-fill-color:initial}
+  .pill{padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--dim);font-size:12px;background:rgba(255,255,255,.015)}
+  .pill.ok{color:var(--ok);border-color:#2c5a3d;box-shadow:0 0 0 3px rgba(78,201,122,.07)}
+  .pill.bad{color:var(--bad);border-color:#5a2c2c;box-shadow:0 0 0 3px rgba(224,108,117,.07)}
+  main{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:285px minmax(0,1fr) 330px;gap:12px;padding:12px;align-items:stretch;overflow:hidden}
+  main > .panel:first-child{overflow-y:auto}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:12px;padding:12px;
+         display:flex;flex-direction:column;min-height:0;overflow:hidden;
+         box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 18px 40px -34px #000}
+  .scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:2px}
+  label{display:block;color:#a9b8cd;font-size:12px;margin:11px 0 5px;letter-spacing:.15px}
+  select,input,textarea{width:100%;background:#0f151f;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;
+                        transition:border-color .15s,box-shadow .15s}
+  input::placeholder,textarea::placeholder{color:#5f7089}
+  #run{padding:10px 20px;font-size:14px;letter-spacing:.6px;box-shadow:0 4px 22px -6px rgba(79,179,232,.95)}
+  #run:hover{box-shadow:0 7px 26px -6px rgba(79,179,232,1)}
+  #papply{padding:7px 14px !important;font-size:12.5px !important;background:rgba(79,179,232,.12) !important;
+          color:var(--accent) !important;border:1px solid rgba(79,179,232,.45) !important;box-shadow:none !important}
+  #papply:hover{background:rgba(79,179,232,.22) !important;border-color:var(--accent) !important;
+                box-shadow:0 0 16px -6px rgba(79,179,232,.6) !important}
+  select:hover,input:hover,textarea:hover{border-color:var(--line2)}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,179,232,.14)}
+  textarea{resize:vertical;line-height:1.65}
+  #prompts{flex:0 0 auto}
+  #negative{flex:0 0 auto}
+  .row{display:flex;gap:8px;flex:0 0 auto}.row>*{flex:1}
+  .btnrow{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;flex:0 0 auto}
+  button{background:linear-gradient(180deg,#5cc0f2,#3796d4);color:#06121c;border:0;border-radius:9px;padding:8px 12px;font:600 13px/1 inherit;cursor:pointer;
+         transition:transform .12s,box-shadow .15s,filter .15s;box-shadow:0 3px 14px -6px rgba(79,179,232,.75)}
+  button:hover{filter:brightness(1.09);transform:translateY(-1px);box-shadow:0 6px 18px -7px rgba(79,179,232,.85)}
+  button:active{transform:translateY(0) scale(.985)}
+  button.ghost{background:rgba(255,255,255,.02);color:var(--fg);border:1px solid var(--line);box-shadow:none}
+  button.ghost:hover{background:rgba(255,255,255,.055);border-color:var(--line2);filter:none;transform:none;box-shadow:none}
+  button.mini{padding:3px 7px;font-size:11px;border-radius:7px;background:transparent;color:var(--dim);border:1px solid var(--line);box-shadow:none;
+              transition:color .15s,border-color .15s,background .15s}
+  button.mini:hover{color:var(--fg);border-color:var(--line2);background:rgba(255,255,255,.04)}
+  button:disabled{opacity:.45;cursor:default;filter:grayscale(.3)}
+  .gallery{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:8px;margin-top:8px;overflow-y:auto;align-content:start}
+  .gallery img{width:100%;border-radius:9px;border:1px solid var(--line);display:block;cursor:pointer;background:#0b0f15;
+               transition:transform .18s,box-shadow .18s,border-color .18s}
+  .gallery img:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 14px 30px -16px #000}
+  .gallery figure{margin:0}
+  .gallery figcaption{color:var(--dim);font-size:11px;padding-top:3px;word-break:break-all}
+  #log{color:#9fb0c6;font-size:12px;white-space:pre-wrap;margin-top:8px;max-height:72px;overflow-y:auto;flex:0 0 auto}
+  .lib{flex:1 1 auto;min-height:0;overflow-y:auto;margin-top:6px}
+  .item{border:1px solid var(--line);border-radius:10px;padding:7px 8px;margin-bottom:6px;
+        background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008));
+        transition:border-color .15s,box-shadow .15s}
+  .item:hover{border-color:var(--line2);box-shadow:0 8px 20px -18px #000}
+  .item .t{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .item .t span.nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .p{color:#9fb0c6;font-size:11.5px;line-height:1.5;margin:4px 0 6px;max-height:36px;overflow:hidden}
+  .item .acts{display:flex;gap:5px;flex-wrap:wrap}
+  .item .tag{font-size:10px;color:var(--warn)}
+  .hint{color:#95a7bd;font-size:11.5px;line-height:1.65;margin-top:5px}
+  #big{position:fixed;inset:0;background:rgba(6,9,14,.88);backdrop-filter:blur(6px);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:9;gap:10px}
+  #big img{max-width:92vw;max-height:74vh}
+  #bigmeta{color:#dfe3ea;font-size:12px;max-width:92vw;background:#0006;padding:8px 10px;border-radius:8px;white-space:pre-wrap;max-height:20vh;overflow:auto}
+  #bigbar{display:flex;gap:8px}
+  .sel{width:auto !important}
+  label.inline{display:inline-flex;align-items:center;gap:6px;margin:0 0 0 6px;color:var(--dim);font-size:12px;white-space:nowrap}
+  label.inline input{width:64px;padding:4px 6px}
+  #tagbox{position:fixed;z-index:80;min-width:380px;max-width:620px;max-height:290px;overflow:auto;
+          background:linear-gradient(180deg,#182130,#131b27);border:1px solid var(--line2);border-radius:11px;
+          box-shadow:0 20px 48px rgba(0,0,0,.72),0 0 0 1px rgba(79,179,232,.08);font-size:13px}
+  #tagbox .it{padding:5px 10px;cursor:pointer;display:flex;gap:9px;align-items:baseline;white-space:nowrap}
+  #tagbox .it:hover,#tagbox .it.on{background:#243040}
+  #tagbox .tg{font-family:ui-monospace,Consolas,monospace;color:var(--accent)}
+  #tagbox .zh{color:var(--fg);opacity:.85}
+  #tagbox .nt{color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+  #tagbox .cnt{margin-left:auto;color:var(--dim);font-size:11px}
+  /* ── 点选搭词面板（8 类一级 Tab · 二级 filter · 高频 grid · 已选区）── */
+  #mid{overflow-y:auto;overflow-x:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 26px 60px -44px #000,
+       0 0 0 1px rgba(79,179,232,.06)}
+  #mid .gallery{flex:0 0 auto;min-height:260px;max-height:46vh}
+  #pwrap{flex:0 0 auto;max-height:34vh;display:flex;flex-direction:column;gap:6px;
+         border:1px solid var(--line);border-radius:11px;padding:8px;margin-top:6px;
+         background:linear-gradient(180deg,rgba(79,179,232,.05),rgba(255,255,255,.012))}
+  .ptabs{display:flex;flex-wrap:wrap;gap:4px;flex:0 0 auto}
+  .ptabs b{padding:3px 9px;border-radius:7px;border:1px solid var(--line);cursor:pointer;
+           font-size:12px;font-weight:600;color:var(--dim);user-select:none}
+  .ptabs b:hover{color:var(--fg);border-color:#4a5568}
+  .ptabs b.on{background:linear-gradient(180deg,#5cc0f2,#3796d4);color:#06121c;border-color:transparent;
+              box-shadow:0 3px 12px -5px rgba(79,179,232,.85)}
+  .psubs{display:flex;flex-wrap:wrap;gap:4px;flex:0 0 auto}
+  .psubs i{padding:2px 9px;border-radius:999px;border:1px dashed var(--line);font-style:normal;
+           font-size:11px;color:var(--dim);cursor:pointer;user-select:none}
+  .psubs i:hover{color:var(--fg)}
+  .psubs i.on{border-style:solid;border-color:var(--accent);color:var(--accent)}
+  .pgrid{display:flex;flex-wrap:wrap;gap:4px;overflow-y:auto;align-content:flex-start;
+         padding:2px;min-height:56px;flex:1 1 auto}
+  .pgrid b{padding:3px 8px;border-radius:7px;border:1px solid var(--line);background:#111925;
+           color:var(--fg);font-weight:400;font-size:12px;cursor:pointer;user-select:none;white-space:nowrap;
+           transition:border-color .12s,background .12s,transform .1s,color .12s}
+  .pgrid b:hover{border-color:var(--accent);background:#16222f;transform:translateY(-1px)}
+  .pgrid b:active{transform:translateY(0) scale(.96)}
+  .pgrid b.on{background:linear-gradient(180deg,#5cc0f2,#3796d4);color:#06121c;border-color:transparent;
+              box-shadow:0 2px 10px -4px rgba(79,179,232,.8)}
+  .pgrid b.on::before{content:"✓ ";font-weight:700}
+  .pgrid b.mine{border-color:#6b5a33}
+  .pgrid b.more{color:var(--dim);background:transparent;border-style:dashed}
+  .pgrid b .z{color:var(--dim);font-size:11px;margin-left:5px}
+  .pgrid b.on .z{color:#08131c;opacity:.7}
+  .pfoot{display:flex;gap:8px;align-items:flex-start;flex:0 0 auto;border-top:1px solid var(--line);padding-top:6px}
+  #psel{flex:1;display:flex;flex-wrap:wrap;gap:4px;min-height:26px;max-height:60px;overflow-y:auto}
+  #psel span{display:inline-flex;align-items:center;gap:2px;padding:2px 4px 2px 8px;border-radius:6px;
+             background:#243040;font-size:11px;font-family:ui-monospace,Consolas,monospace}
+  #psel span i{cursor:pointer;color:var(--dim);font-style:normal;padding:0 3px;border-radius:4px}
+  #psel span i:hover{color:var(--bad);background:#00000040}
+  #psel .ph{background:none;color:var(--dim);font-family:inherit;padding-left:0}
+</style>
+</head>
+<body>
+<header>
+  <h1>铃酱跑图台</h1>
+  <span class="pill" id="comfy">ComfyUI ?</span>
+  <span class="pill" id="queue">队列 —</span>
+  <span class="pill" id="libcount">库 0</span>
+  <button class="ghost" id="power" style="padding:5px 10px;font-size:12px">休眠</button>
+  <span style="flex:1"></span>
+  <span class="hint">后端 8199 · 与脚本共用同一队列</span>
+</header>
+
+<main>
+  <!-- ① 参数 -->
+  <section class="panel">
+    <label>线（line）</label>
+    <select id="line"></select>
+    <div class="hint" id="lineInfo"></div>
+
+    <label>LoRA <span id="loracount" class="hint" style="display:inline"></span>
+      <label style="display:inline;margin-left:6px"><input type="checkbox" id="loraAll" class="sel"> 显示全部</label>
+    </label>
+    <input id="loraq" placeholder="搜 LoRA（打几个字母过滤）" style="margin-bottom:4px">
+    <select id="lora"></select>
+
+    <label>LoRA 强度</label>
+    <input id="strength" type="number" step="0.05" value="0.8">
+
+    <label>第二 LoRA（可选 · 叠在上面）</label>
+    <select id="lora2"></select>
+    <label>第二 LoRA 强度</label>
+    <input id="strength2" type="number" step="0.05" value="0.8">
+
+    <div class="row">
+      <div><label>宽</label><input id="w" type="number" value="832"></div>
+      <div><label>高</label><input id="h" type="number" value="1216"></div>
+    </div>
+    <div class="row">
+      <div><label>步数</label><input id="steps" type="number"></div>
+      <div><label>CFG</label><input id="cfg" type="number" step="0.1"></div>
+    </div>
+
+    <label>前缀（文件名）</label>
+    <input id="prefix" value="ui">
+
+    <label>种子</label>
+    <input id="seed" placeholder="留空=随机">
+
+    <label><input type="checkbox" id="free" class="sel" checked> 跑前 /free 腾显存</label>
+  </section>
+
+  <!-- ② 提示词 + 出图 -->
+  <section class="panel" id="mid">
+    <label>说人话 → 自动翻成英文提示词</label>
+    <div class="row">
+      <input id="zh" placeholder="例：地雷系少女，夜里便利店门口，上衣半脱露出内衣，挑衅地看着镜头（回车即翻译）">
+      <button class="ghost" id="zhgo" style="flex:0 0 92px">翻成 tags</button>
+    </div>
+    <div class="hint">按当前「线」自动换风格：anima = 二次元 tags，zimage = 写实摄影描述。结果直接追加成新的一行；写多句连按回车 = 一次跑一批。「每行出 N 张」能让每行一次出多张（seed 自动递增）。<b>提示词框里直接打中文，会自动弹候选</b>——本地词库，不联网。</div>
+
+    <label style="margin-top:10px">点选搭词 <span class="hint" style="display:inline">（不会英文也能拼 · 8 类 → 细分组 → 点标签进「已选」· 最后一次性灌进提示词框）</span></label>
+    <div id="pwrap">
+      <div style="display:flex;gap:6px;align-items:center;flex:0 0 auto">
+        <input id="pq" placeholder="🔍 搜标签（中文英文都行，例：黑丝 / thighhighs / 白丝）">
+        <button class="mini" id="pclear" style="flex:0 0 auto">清空已选</button>
+      </div>
+      <div class="ptabs" id="ptabs"></div>
+      <div class="psubs" id="psubs"></div>
+      <div class="pgrid" id="pgrid"></div>
+      <div class="pfoot">
+        <div id="psel"></div>
+        <button id="papply" style="flex:0 0 auto;padding:6px 11px;font-size:12px">↳ 加入提示词</button>
+      </div>
+    </div>
+
+    <label>提示词（一行一个 prompt）· 打字出候选，↑↓ 选 · Enter 插入 · Esc 关</label>
+    <textarea id="prompts" rows="5" placeholder="1girl, solo, ...&#10;第二张的提示词&#10;第三张..."></textarea>
+    <div id="tagbox" hidden></div>
+    <div class="btnrow">
+      <button id="run">跑这一批</button>
+      <button class="ghost" id="save">存进提示词库</button>
+      <button class="ghost" id="refresh">刷新</button>
+      <label class="inline">每行出 <input id="perprompt" type="number" min="1" max="16" value="1"> 张</label>
+    </div>
+
+    <label>负面（默认带红线，别删 gore/blood）</label>
+    <textarea id="negative" rows="2"></textarea>
+    <div id="log"></div>
+
+    <label style="margin-top:12px">图墙（最新在上 · 点图看大图与元数据）</label>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <!-- ③ 提示词库 -->
+  <section class="panel">
+    <label>提示词库</label>
+    <input id="q" placeholder="搜索名字 / 内容…">
+    <div class="row" style="margin-top:6px">
+      <select id="gsel"><option value="">全部分组</option></select>
+      <button class="ghost" id="imp">导入图墙</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button class="ghost" id="batch">批量灌入（按勾选）</button>
+      <button class="ghost" id="clearsel">清空勾选</button>
+    </div>
+    <div class="hint">插入=替换文本框 · 追加=加一行 · ★=置顶 · 点击条目标题可编辑</div>
+    <div class="lib" id="lib"></div>
+  </section>
+</main>
+
+<div id="big">
+  <img id="bigimg">
+  <div id="bigmeta"></div>
+  <div id="bigbar">
+    <button class="ghost" id="bigsave">把这张的提示词存进库</button>
+    <button class="ghost" id="bigload">载入这张的参数</button>
+    <button class="ghost" id="bigclose">关闭</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const log = m => { $("#log").textContent = `[${new Date().toLocaleTimeString()}] ${m}\n` + $("#log").textContent; };
+const jget = async u => { const r = await fetch(u); if(!r.ok) throw new Error(r.status); return r.json(); };
+const jpost = async (u,b) => (await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})).json();
+
+let OPTS=null, LIB=[], SEL=new Set(), BIGNAME=null;
+
+/* ---------- 参数 ---------- */
+async function loadOptions(){
+  OPTS = await jget("/api/options");
+  const l=$("#line"); l.innerHTML="";
+  OPTS.lines.forEach(x=>l.add(new Option(x.name,x.name)));
+  fillLoras();
+  applyLine();
+}
+function fillLoras(){
+  const line=$("#line").value;
+  const all=$("#loraAll").checked;
+  const q=$("#loraq").value.trim().toLowerCase();
+  const keep=$("#lora").value;
+  const pool=OPTS.loras
+    .filter(x=>all||(x.line===line && !x.extra))
+    .filter(x=>!q||x.name.toLowerCase().includes(q)||(x.alias||"").toLowerCase().includes(q))
+    .sort((a,b)=>(b.star-a.star)||(b.used-a.used)||((a.line===line?0:1)-(b.line===line?0:1))||a.name.localeCompare(b.name));
+  for(const sel of ["#lora","#lora2"]){
+    const lo=$(sel), keepv=lo.value;
+    lo.innerHTML="";
+    lo.add(new Option(sel==="#lora2"?"（不叠第二 LoRA）":"（不挂 LoRA）",""));
+    pool.forEach(x=>lo.add(new Option((x.star?"★ ":"")+(x.used?`[${x.used}] `:"")+(x.alias?x.alias+" · ":"")+x.name+(all?"  ["+x.line+"]":""), x.name)));
+    if([...lo.options].some(o=>o.value===keepv)) lo.value=keepv;
+  }
+  const total=OPTS.loras.filter(x=>all||(x.line===line&&!x.extra)).length;
+  $("#loracount").textContent= OPTS.loras.length===0 ? "⚠ 拉不到（ComfyUI 没连上）"
+    : (all? `${pool.length} / ${OPTS.loras.length} 个` : `${pool.length} / ${total} 个（本线）`) + (OPTS.stale?" · 缓存":"");
+  if(OPTS.loras.length===0) lo.add(new Option("—— ComfyUI 没连上，点上方「重启 ComfyUI」——",""));
+}
+function applyLine(){
+  const name=$("#line").value;
+  const cur=OPTS.lines.find(x=>x.name===name)||{};
+  const d=cur.defaults||{};
+  $("#steps").value=d.steps??""; $("#cfg").value=d.cfg??"";
+  $("#w").value=d.width??832; $("#h").value=d.height??1216;
+  $("#negative").value=cur.negative||"";
+  $("#lineInfo").textContent=cur.unet?`${d.sampler||"?"}/${d.scheduler||"?"} · ${cur.unet}`:"";
+  fillLoras();
+}
+
+/* ---------- 中文标签补全（本地词库 /api/tags，零云端零 LLM） ---------- */
+const TAGBOX=$("#tagbox"), TAGTA=$("#prompts");
+let tagTimer=null, tagItems=[], tagSel=0, tagRange=null;
+function tagHide(){ TAGBOX.hidden=true; tagItems=[]; tagSel=0; tagRange=null; }
+function tagWord(){
+  const pos=TAGTA.selectionStart, s=TAGTA.value.slice(0,pos);
+  const m=s.match(/[^,\n]*$/);
+  const w=m?m[0]:"";
+  return {word:w.trim(), start:pos-w.length, end:pos};
+}
+async function tagQuery(){
+  const {word,start,end}=tagWord();
+  tagRange={start,end};
+  if(!word) return tagHide();
+  let d;
+  try{ d=await jget("/api/tags?q="+encodeURIComponent(word)+"&limit=12"); }
+  catch(e){ return tagHide(); }
+  tagItems=(d&&d.items)||[];
+  if(!tagItems.length) return tagHide();
+  tagSel=0;
+  TAGBOX.innerHTML=tagItems.map((t,i)=>
+    `<div class="it${i===0?" on":""}" data-i="${i}"><span class="tg">${esc(t.tag)}</span>`+
+    `<span class="zh">${esc(t.zh||"")}</span><span class="nt">${esc((t.notes||"").slice(0,26))}</span>`+
+    `<span class="cnt">${t.count>=10000?(t.count/10000|0)+"万":(t.count/1000|0)+"k"}</span></div>`).join("");
+  const r=TAGTA.getBoundingClientRect();
+  TAGBOX.style.left=Math.max(8,r.left+10)+"px";
+  TAGBOX.style.top=(r.bottom+4)+"px";
+  TAGBOX.hidden=false;
+}
+function tagMark(){ [...TAGBOX.children].forEach((c,i)=>c.classList.toggle("on",i===tagSel)); }
+function tagPick(i){
+  const t=tagItems[i]; if(!t||!tagRange) return;
+  const v=TAGTA.value, before=v.slice(0,tagRange.start), after=v.slice(tagRange.end);
+  const sep=/^\s*,/.test(after)?"":", ";
+  TAGTA.value=before+t.tag+sep+after;
+  const np=(before+t.tag+sep).length;
+  TAGTA.setSelectionRange(np,np); TAGTA.focus();
+  tagHide(); updRun();
+}
+TAGTA.addEventListener("input",()=>{ clearTimeout(tagTimer); tagTimer=setTimeout(tagQuery,160); });
+TAGTA.addEventListener("keydown",e=>{
+  if(TAGBOX.hidden) return;
+  if(e.key==="ArrowDown"){ e.preventDefault(); tagSel=Math.min(tagSel+1,tagItems.length-1); tagMark(); }
+  else if(e.key==="ArrowUp"){ e.preventDefault(); tagSel=Math.max(tagSel-1,0); tagMark(); }
+  else if(e.key==="Enter"||e.key==="Tab"){ e.preventDefault(); tagPick(tagSel); }
+  else if(e.key==="Escape"){ e.preventDefault(); tagHide(); }
+});
+TAGBOX.addEventListener("mousedown",e=>{
+  const it=e.target.closest(".it"); if(!it) return;
+  e.preventDefault(); tagPick(+it.dataset.i);
+});
+TAGTA.addEventListener("blur",()=>setTimeout(tagHide,150));
+
+/* 按钮自己报数：几行 × 每行几张 */
+function updRun(){
+  const n=TAGTA.value.split("\n").map(s=>s.trim()).filter(Boolean).length;
+  const per=Math.max(1,+$("#perprompt").value||1);
+  $("#run").textContent = (n>1||per>1) ? `跑这一批（${n}行×${per}张=${n*per}张）` : "跑这一批";
+}
+TAGTA.addEventListener("input",updRun);
+$("#perprompt").addEventListener("input",updRun);
+
+/* ---------- 跑 ---------- */
+async function run(){
+  const lines=$("#prompts").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!lines.length) return log("提示词是空的。");
+  const seedRaw=$("#seed").value.trim();
+  const jobs=lines.map((p,i)=>({prompt:p,suffix:String.fromCharCode(97+i),seed:seedRaw||"random"}));
+  $("#run").disabled=true;
+  try{
+    const r=await jpost("/api/run",{
+      line:$("#line").value, lora:$("#lora").value||null,
+      lora_strength:parseFloat($("#strength").value)||0.8,
+      lora2:$("#lora2").value||null,
+      lora2_strength:parseFloat($("#strength2").value)||0.8,
+      per_prompt:+$("#perprompt").value||1,
+      width:+$("#w").value, height:+$("#h").value,
+      steps:+$("#steps").value||null, cfg:+$("#cfg").value||null,
+      prefix:$("#prefix").value, negative:$("#negative").value,
+      free:$("#free").checked, jobs});
+    log(r.ok?`已提交 ${r.queued.length} 张：`+r.queued.map(x=>x.suffix+"#"+x.seed).join(" "):"失败："+r.error);
+    if(r.ok) touchUsed(lines);
+  }catch(e){ log("失败："+e.message); }
+  $("#run").disabled=false; tick();
+}
+async function touchUsed(lines){
+  const ids=LIB.filter(it=>lines.includes(it.text)).map(it=>it.id);
+  if(ids.length){ await jpost("/api/prompts/touch",{ids}); loadLib(); }
+}
+
+/* ---------- 图墙 ---------- */
+async function tick(){
+  try{
+    const s=await jget("/api/state?n=40");
+    $("#comfy").textContent = s.alive ? "ComfyUI 在线" : "ComfyUI 休眠";
+    $("#comfy").className="pill "+(s.alive?"ok":"bad");
+    if(!$("#power").disabled) $("#power").textContent = s.alive ? "休眠" : "唤醒";
+    $("#queue").textContent=`队列 跑${s.running>=0?s.running:"?"} 排${s.pending>=0?s.pending:"?"}`+((s.running>0||s.pending>0)?" ⏳":" ✓");
+    $("#gallery").innerHTML=s.gallery.map(it=>
+      `<figure><img loading="lazy" src="/img?name=${encodeURIComponent(it.name)}" onclick="big('${it.name}')"><figcaption>${it.name.replace(/_\d{5}_\.png$/,"")}</figcaption></figure>`).join("");
+  }catch(e){ $("#comfy").textContent="后端没响应"; $("#comfy").className="pill bad"; }
+}
+
+/* ---------- 大图 ---------- */
+async function big(n){
+  BIGNAME=n;
+  $("#bigimg").src="/img?name="+encodeURIComponent(n);
+  $("#big").style.display="flex";
+  $("#bigmeta").textContent="读取元数据…";
+  try{
+    const m=await jget("/api/pnginfo?name="+encodeURIComponent(n));
+    $("#bigmeta").textContent = m.positive
+      ? `seed ${m.seed} · ${m.steps}步 CFG${m.cfg} · ${m.sampler}\n模型 ${m.model}\n\n${m.positive}`
+      : "（这张图里没有元数据）";
+    window.__meta=m;
+  }catch(e){ $("#bigmeta").textContent="元数据读取失败"; }
+}
+$("#bigclose").onclick=()=>$("#big").style.display="none";
+$("#big").onclick=e=>{ if(e.target.id==="big") $("#big").style.display="none"; };
+$("#bigsave").onclick=async()=>{
+  const m=window.__meta||{};
+  if(!m.positive) return alert("没有可保存的提示词");
+  const name=prompt("条目名字？", BIGNAME.replace(/_\d{5}_\.png$/,""));
+  if(name===null) return;
+  await jpost("/api/prompts",{name,text:m.positive,group:"图墙导入"});
+  log("已存进库："+name); loadLib();
+};
+$("#bigload").onclick=async()=>{
+  const m=window.__meta||{};
+  if(!m.positive) return alert("没有元数据");
+  $("#prompts").value=m.positive;
+  if(m.seed) $("#seed").value=m.seed;
+  if(m.steps) $("#steps").value=m.steps;
+  if(m.cfg) $("#cfg").value=m.cfg;
+  log("已载入参数（seed "+m.seed+"）");
+  $("#big").style.display="none";
+};
+
+/* ---------- 提示词库 ---------- */
+async function loadLib(){
+  const d=await jget("/api/prompts");
+  LIB=d.items;
+  $("#libcount").textContent="库 "+LIB.length;
+  const g=$("#gsel"), cur=g.value;
+  g.innerHTML='<option value="">全部分组</option>';
+  d.groups.forEach(x=>g.add(new Option(x,x)));
+  g.value=cur;
+  renderLib();
+}
+function renderLib(){
+  const q=$("#q").value.trim().toLowerCase();
+  const g=$("#gsel").value;
+  const list=LIB.filter(it=>
+    (!g||it.group===g) &&
+    (!q||(it.name||"").toLowerCase().includes(q)||(it.text||"").toLowerCase().includes(q)));
+  $("#lib").innerHTML=list.map(it=>`
+    <div class="item">
+      <div class="t">
+        <input type="checkbox" class="sel" ${SEL.has(it.id)?"checked":""} onchange="toggle('${it.id}',this.checked)">
+        <span class="nm" onclick="ren('${it.id}')">${it.star?"★ ":""}${esc(it.name)}</span>
+        <button class="mini" onclick="star('${it.id}')">★</button>
+        <button class="mini" onclick="del('${it.id}')">×</button>
+      </div>
+      <div class="p">${esc(it.preview||"")}</div>
+      <div class="acts">
+        <button class="mini" onclick="ins('${it.id}')">插入</button>
+        <button class="mini" onclick="app('${it.id}')">追加</button>
+        ${it.group?`<span class="tag">${esc(it.group)}</span>`:""}
+        <span class="tag">用 ${it.used||0} 次</span>
+      </div>
+    </div>`).join("") || `<div class="hint">库里还空着——在文本框写好提示词，点「存进提示词库」；或点「导入图墙」把最近出过的图收进来。</div>`;
+}
+const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const byId=id=>LIB.find(x=>x.id===id);
+function ins(id){ const it=byId(id); if(it){ $("#prompts").value=it.text; log("插入："+it.name); } }
+function app(id){ const it=byId(id); if(it){ const t=$("#prompts"); t.value=(t.value.trim()?t.value.replace(/\s*$/,"")+"\n":"")+it.text; log("追加："+it.name); } }
+async function del(id){ const it=byId(id); if(!it||!confirm("删掉「"+it.name+"」？")) return; await jpost("/api/prompts/delete",{ids:[id]}); loadLib(); }
+async function star(id){ const it=byId(id); await jpost("/api/prompts",{id,star:!it.star}); loadLib(); }
+async function ren(id){ const it=byId(id); const n=prompt("改名字：",it.name); if(n===null) return; await jpost("/api/prompts",{id,name:n}); loadLib(); }
+function toggle(id,on){ on?SEL.add(id):SEL.delete(id); }
+$("#batch").onclick=()=>{
+  const picked=LIB.filter(it=>SEL.has(it.id));
+  if(!picked.length) return log("没勾选任何条目。");
+  $("#prompts").value=picked.map(it=>it.text).join("\n");
+  log(`灌入 ${picked.length} 条`);
+};
+$("#clearsel").onclick=()=>{ SEL.clear(); renderLib(); };
+$("#save").onclick=async()=>{
+  const t=$("#prompts").value.trim();
+  if(!t) return log("文本框是空的。");
+  const name=prompt("条目名字？", t.slice(0,20));
+  if(name===null) return;
+  const r=await jpost("/api/prompts",{name,text:t,line:$("#line").value,lora:$("#lora").value,group:""});
+  log(r.ok?"已存进库："+name:"保存失败："+r.error); loadLib();
+};
+$("#imp").onclick=async()=>{
+  const n=prompt("从图墙最近多少张里导入？","30");
+  if(n===null) return;
+  const r=await jpost("/api/prompts/import-gallery",{n:+n||30});
+  log(r.ok?`导入了 ${r.added} 条`:"导入失败："+r.error); loadLib();
+};
+$("#q").oninput=renderLib; $("#gsel").onchange=renderLib;
+$("#zhgo").onclick=async()=>{
+  const zh=$("#zh").value.trim();
+  if(!zh) return log("先在左边写一句中文描述。");
+  const b=$("#zhgo"); b.disabled=true; b.textContent="翻译中…";
+  try{
+    const r=await jpost("/api/prompt-help",{zh,line:$("#line").value,n:1});
+    if(!r.ok){ log("翻译失败："+r.error); }
+    else{
+      const t=$("#prompts");
+      t.value = t.value.trim() ? t.value.replace(/\s*$/,"")+"\n"+r.text : r.text;
+      $("#zh").value="";
+      log(`已生成（${r.provider}）：`+r.text.slice(0,70)+(r.text.length>70?"…":""));
+    }
+  }catch(e){ log("翻译失败："+e.message); }
+  b.disabled=false; b.textContent="翻成 tags";
+};
+$("#zh").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#zhgo").click(); } });
+$("#line").onchange=applyLine;
+$("#loraAll").onchange=fillLoras;
+$("#loraq").oninput=fillLoras;
+$("#power").onclick=async()=>{
+  const alive=$("#comfy").textContent.includes("在线");
+  const b=$("#power");
+  if(alive){
+    if(!confirm("让 ComfyUI 休眠？\n会直接结束进程，把显存全部吐出来（约 1.6 GB 起）。\n下次跑图会自动唤醒，多等 20 秒左右。")) return;
+    b.disabled=true; b.textContent="休眠中…";
+    try{ const r=await jpost("/api/comfy-power",{on:false}); log("已休眠，结束进程："+(r.killed||[]).join(",")||"无"); }
+    catch(e){ log("休眠失败："+e.message); }
+  }else{
+    b.disabled=true; b.textContent="唤醒中…";
+    log("正在唤醒 ComfyUI（约 20 秒）…");
+    try{ const r=await jpost("/api/comfy-power",{on:true,wait:180}); log(r.already?"本来就在线":(r.ready?`已唤醒（${r.waited}s）`:"没唤醒成功："+r.error)); }
+    catch(e){ log("唤醒失败："+e.message); }
+  }
+  b.disabled=false;
+  await tick();
+};
+$("#run").onclick=run;
+$("#refresh").onclick=()=>loadOptions().then(tick).then(loadLib).catch(e=>log("刷新失败："+e.message));
+
+/* ---------- 点选搭词面板（8 类一级 · 二级 filter · 高频 + 搜索 + 已选区） ---------- */
+let PANEL=null, PTAB=0, PSUB=0, PSEL=[], PQ=[], PBIG=null, PQT=null;
+
+async function loadPanel(){
+  try{ PANEL=await jget("/api/panel?top=24"); PTAB=0; PSUB=0; PBIG=null; renderPanel(); }
+  catch(e){ $("#ptabs").innerHTML='<span style="color:var(--bad);font-size:12px">面板加载失败：'+esc(e.message)+"</span>"; }
+}
+const pSelSet=()=>new Set(PSEL);
+function pCat(){ return PANEL?PANEL.cats[PTAB]:null; }
+function pSub(){ const c=pCat(); if(!c||!c.subs.length) return null; return c.subs[Math.min(PSUB,c.subs.length-1)]; }
+
+function renderPanel(){
+  if(!PANEL) return;
+  $("#ptabs").innerHTML=`<b data-t="-1" class="${PTAB===-1?"on":""}">★ 我常用</b>`+
+    PANEL.cats.map((c,i)=>`<b data-t="${i}" class="${i===PTAB?"on":""}">${esc(c.name)}</b>`).join("");
+  const c=pCat(), subs=(c&&c.subs.length)?c.subs:[];
+  $("#psubs").innerHTML = subs.length>1 ? subs.map((s,i)=>
+    `<i data-s="${i}" class="${i===PSUB?"on":""}">${esc(s.name)}<span style="opacity:.5;margin-left:4px">${s.total}</span></i>`).join("") : "";
+  renderPGrid(); renderPSel();
+}
+
+function pList(){
+  if(PQ.length) return {items:PQ, more:0};
+  if(PTAB===-1) return {items:(PANEL&&PANEL.mine)||[], more:0};
+  const s=pSub(); if(!s) return {items:[], more:0};
+  if(PBIG) return {items:PBIG, more:0};
+  return {items:s.top, more:Math.max(0,s.total-s.top.length)};
+}
+
+function renderPGrid(){
+  const {items,more}=pList(), sel=pSelSet();
+  const html=items.map(t=>`<b class="${sel.has(t.tag)?"on":""}${t.mine?" mine":""}" data-tag="${esc(t.tag)}" title="${esc(t.tag)}">`+
+    esc(t.tag)+`<span class="z">${esc(t.zh||"")}</span>`+(t.mine?`<span class="z">★${t.mine}</span>`:"")+`</b>`).join("");
+  $("#pgrid").innerHTML=(html||`<span class="hint">这一格空了（换个分类或搜一下）。</span>`)
+    +(more?`<b class="more" data-more="1">显示全部（还有 ${more} 个）</b>`:"")
+    +(PQ.length?`<b class="more" data-clearsearch="1">× 退出搜索</b>`:"");
+}
+
+function renderPSel(){
+  const el=$("#psel");
+  if(!PSEL.length){ el.innerHTML=`<span class="ph">已选 0 个 —— 点上面的标签加进来，顺序就是你点选的顺序</span>`; return; }
+  el.innerHTML=`<span class="ph">已选 ${PSEL.length}：</span>`+PSEL.map((t,i)=>
+    `<span>${esc(t)}<i data-del="${i}" title="移除">×</i></span>`).join("");
+}
+
+function pToggle(t){
+  const i=PSEL.indexOf(t);
+  if(i>=0) PSEL.splice(i,1); else PSEL.push(t);
+  const b=document.querySelector(`#pgrid b[data-tag="${CSS.escape(t)}"]`);
+  if(b) b.classList.toggle("on", i<0);
+  renderPSel();
+}
+
+$("#ptabs").onclick=e=>{
+  const b=e.target.closest("b[data-t]"); if(!b) return;
+  PTAB=+b.dataset.t; PSUB=0; PBIG=null; PQ=[]; $("#pq").value=""; renderPanel();
+};
+$("#psubs").onclick=e=>{
+  const i=e.target.closest("i[data-s]"); if(!i) return;
+  PSUB=+i.dataset.s; PBIG=null; renderPanel();
+};
+$("#pgrid").onclick=async e=>{
+  const b=e.target.closest("b"); if(!b) return;
+  if(b.dataset.tag){ pToggle(b.dataset.tag); return; }
+  if(b.dataset.clearsearch){ PQ=[]; $("#pq").value=""; renderPGrid(); return; }
+  if(b.dataset.more){
+    const s=pSub(); if(!s){ PBIG=[]; renderPGrid(); return; }
+    b.textContent="读取中…";
+    try{ const d=await jget("/api/panel?sub="+encodeURIComponent(s.name)+"&n=300");
+         PBIG=d.items||[]; renderPGrid(); }
+    catch(err){ log("读取失败："+err.message); }
+  }
+};
+$("#psel").onclick=e=>{
+  const i=e.target.closest("i[data-del]"); if(!i) return;
+  const t=PSEL.splice(+i.dataset.del,1)[0];
+  const b=document.querySelector(`#pgrid b[data-tag="${CSS.escape(t)}"]`);
+  if(b) b.classList.remove("on");
+  renderPSel();
+};
+$("#pq").oninput=()=>{ clearTimeout(PQT); PQT=setTimeout(pSearch,180); };
+async function pSearch(){
+  const q=$("#pq").value.trim();
+  if(!q){ PQ=[]; renderPGrid(); return; }
+  try{ const d=await jget("/api/tags?q="+encodeURIComponent(q)+"&limit=60"); PQ=d.items||[]; }
+  catch(e){ PQ=[]; }
+  renderPGrid();
+}
+$("#pclear").onclick=()=>{ PSEL=[]; renderPGrid(); renderPSel(); };
+$("#papply").onclick=()=>{
+  if(!PSEL.length) return log("还没点任何标签。");
+  const line=PSEL.join(", "), t=$("#prompts");
+  t.value = t.value.trim() ? t.value.replace(/\s*$/,"")+"\n"+line : line;
+  log(`已把 ${PSEL.length} 个标签灌进提示词框（独立成一行）`);
+  PSEL=[]; renderPGrid(); renderPSel(); updRun();
+};
+
+/* 开工作台就先检测一次：ComfyUI 不在就唤醒（不常驻，省显存） */
+async function boot(){
+  try{
+    await loadPanel(); await loadOptions(); await loadLib(); await tick();
+    const s=await jget("/api/state?n=1");
+    if(!s.alive){
+      log("ComfyUI 没在跑，正在唤醒（约 20 秒）…");
+      const r=await jpost("/api/comfy-power",{on:true,wait:180});
+      log(r.ready?"ComfyUI 已唤醒，可以开工了":("唤醒失败："+r.error));
+      await loadOptions(); await tick();
+    }
+  }catch(e){ log("初始化失败："+e.message); }
+}
+boot();
+setInterval(tick,5000);
+</script>
+</body>
+</html>
