@@ -15,7 +15,9 @@
 
 ## 快速开始
 
-**前提**：Python 3.11+（只用标准库）；一个能跑的 ComfyUI（默认 `http://127.0.0.1:8188`）。
+**前提**：Python 3.11+（只用标准库）；一个能跑通的 ComfyUI（默认 `http://127.0.0.1:8188`）。
+
+> ⚠️ 本仓库**只含本项目的代码**。ComfyUI 本体、模型、LoRA、VAE 都要你自己准备，各自的许可由你自行遵守 —— 详见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 
 ```bash
 git clone https://github.com/trigger94666-max/suzu-chan-painter.git
@@ -108,13 +110,25 @@ start.bat / stop.bat Windows 启动/停止
 
 ## 许可
 
-MIT，见 `LICENSE`。
+MIT，见 [`LICENSE`](LICENSE)。
+
+第三方组件与数据（ComfyUI、模型、标签词库等）的归属与许可，见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 
 中文词库数据来自 [amenorira/danbooru-tags-data-zh](https://github.com/amenorira/danbooru-tags-data-zh)（MIT），由 `fetch_tags.py` 下载，不随本仓库分发。
 
-## 免责声明
+## 免责声明与边界
 
-本工具是**中性工具**：它只负责提示词组织与任务提交，本身不生成、不存储、不传播任何内容；
-出图由你自己本机运行的模型完成，结果全部留在你自己的机器上。
+本项目是一个**通用软件工具**，只做两件事：组织提示词、把任务提交给你本机的 ComfyUI。
 
-使用者须自行确保使用方式符合所在地法律法规，作者不承担因使用本工具产生的任何责任。
+- **不提供**模型、LoRA、VAE、图片或任何生成内容
+- **不托管**任何在线服务，全部在本机运行
+- **不内置**面向特定用途的配置
+- 生成的图片由你本机的模型产出，全部留在你自己的机器上
+
+使用者需自行确保：
+
+1. 使用方式符合**所在地法律法规**
+2. 所用模型、LoRA、自定义节点符合**各自的许可条款**
+3. 生成内容符合你所发布平台的规则
+
+本项目按 MIT 许可「按现状」提供，不保证生成结果适用于任何特定用途。
