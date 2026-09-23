@@ -46,7 +46,7 @@ cd suzu-chan-painter
 | `tag_dir` | 中文词库目录（下一步会下到这里） |
 | `comfy_dir` / `comfy_log` | ComfyUI 安装目录 / 日志路径 —— 只有要用「重启 ComfyUI」才需要 |
 | `proxy` | 访问境外 LLM 端点用的代理，留空则不走 |
-| `prompt_help` | 提示词助手配置，不用就把 `enabled` 设 `false` |
+| `prompt_help` | 提示词助手配置。`endpoint` 填**任何 OpenAI 兼容**的 chat/completions 地址即可，`key_env` 是存放 key 的环境变量名；不用就把 `enabled` 设 `false` |
 
 相对路径一律相对**项目根目录**。环境变量可临时覆盖（见 `config.py` 的 `ENV_MAP`）。
 
