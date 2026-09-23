@@ -20,7 +20,7 @@
 **前提**：Python 3.11+（只用标准库）；一个能跑的 ComfyUI（默认 `http://127.0.0.1:8188`）。
 
 ```bash
-git clone <仓库地址>
+git clone https://github.com/trigger94666-max/suzu-chan-painter.git
 cd suzu-chan-painter
 ```
 

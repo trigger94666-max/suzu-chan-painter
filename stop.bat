@@ -1,6 +1,6 @@
 @echo off
-title 关闭小铃跑图台
-echo 正在关闭小铃跑图台...
+title 关闭铃酱跑图台
+echo 正在关闭铃酱跑图台...
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":8199" ^| findstr LISTENING') do (
   echo   结束进程 %%p
   taskkill /PID %%p /F >nul 2>&1

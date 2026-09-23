@@ -1,6 +1,6 @@
 @echo off
 cd /d %~dp0
-title Ğ¡ÁåÅÜÍ¼Ì¨
+title Áå½´ÅÜÍ¼Ì¨
 set "URL=http://127.0.0.1:8199"
 
 set "PYEXE="
@@ -20,7 +20,7 @@ if not defined PYEXE (
 netstat -ano | findstr ":8199" | findstr LISTENING >nul
 if not errorlevel 1 goto open
 
-echo ÕıÔÚÆô¶¯Ğ¡ÁåÅÜÍ¼Ì¨...
+echo ÕıÔÚÆô¶¯Áå½´ÅÜÍ¼Ì¨...
 start "suzune-imgui" /min cmd /c "%PYEXE% server.py > server.log 2>&1"
 
 set /a n=0
