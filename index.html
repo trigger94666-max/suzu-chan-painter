@@ -564,6 +564,8 @@ function renderPanel(){
   $("#psubs").innerHTML = subs.length>1 ? subs.map((s,i)=>
     `<i data-s="${i}" class="${i===PSUB?"on":""}">${esc(s.name)}<span style="opacity:.5;margin-left:4px">${s.total}</span></i>`).join("") : "";
   renderPGrid(); renderPSel();
+  if(PANEL.hint) $("#pgrid").innerHTML=
+    `<div style="grid-column:1/-1;padding:14px;line-height:1.9;color:var(--dim)">⚠️ ${esc(PANEL.hint)}</div>`;
 }
 
 function pList(){

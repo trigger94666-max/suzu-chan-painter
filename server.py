@@ -469,6 +469,18 @@ def load_tags():
     return _TAGS
 
 
+def tag_dir_hint():
+    """词库没配好时给一句人话提示（前端显示在面板里，而不是给个空白页）"""
+    if not TAG_DIR:
+        return "还没配词库目录：在 config.json 里设置 tag_dir，或直接跑 python fetch_tags.py 下载"
+    if not os.path.isdir(TAG_DIR):
+        return "词库目录不存在（%s）。跑 python fetch_tags.py 下载，或改 config.json 的 tag_dir" % TAG_DIR
+    if not any(os.path.isfile(os.path.join(TAG_DIR, f)) for f in
+               ("general.csv", "character.csv", "copyright.csv", "artist.csv", "meta.csv")):
+        return "词库目录是空的（%s）。跑 python fetch_tags.py 下载" % TAG_DIR
+    return ""
+
+
 def search_tags(q, limit=20):
     """中文/英文关键词 → 标签候选。纯本地字符串匹配，不联网。
     排序：精确命中(tag/译名/别名) > 前缀命中 > 包含；同级内按图片量降序。"""
@@ -564,7 +576,11 @@ def panel_tree(top=24):
             lst = idx["by_sub"].get(s, [])
             ss.append({"name": s, "total": len(lst), "top": lst[:top]})
         cats.append({"name": name, "subs": ss})
-    return {"ok": True, "cats": cats, "mine": idx["mine"]}
+    out = {"ok": True, "cats": cats, "mine": idx["mine"]}
+    h = tag_dir_hint()
+    if h:
+        out["hint"] = h
+    return out
 
 
 # ────────────────────────── 图墙 ──────────────────────────
