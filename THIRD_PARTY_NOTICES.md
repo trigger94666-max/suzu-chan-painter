@@ -55,3 +55,14 @@
 2. 本文件（`THIRD_PARTY_NOTICES.md`）
 
 并且**不要**把模型、LoRA、图片、API key 或他人作品一并打包进去。
+
+## 许可信息的核对
+
+本文档的第三方许可信息，**最后核对于 2026-09-23**：
+
+| 项目 | 许可 | 核对方式 |
+|---|---|---|
+| ComfyUI | GPL-3.0 | `gh api repos/comfyanonymous/ComfyUI --jq .license.spdx_id` |
+| danbooru-tags-data-zh | MIT | `gh api repos/amenorira/danbooru-tags-data-zh --jq .license.spdx_id` |
+
+**上游许可可能变更。** 升级依赖、或距上次核对已过去很久时，请重新核对上表 —— 一条命令的事。
