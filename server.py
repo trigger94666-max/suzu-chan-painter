@@ -18,7 +18,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from config import CFG                 # 配置：config.json > config.example.json > 默认值 > 环境变量
+from config import CFG                 # 配置：内置默认 < config.json < 环境变量
 
 COMFY = CFG["comfy_url"]
 OUT = CFG["output_dir"]
@@ -436,10 +436,10 @@ _TAG_LOCK = threading.Lock()
 def load_tags():
     """懒加载中文标签库（8.6MB CSV，只读一次，全内存）。来源 amenorira/danbooru-tags-data-zh (MIT)"""
     global _TAGS
-    if _TAGS is not None:
+    if _TAGS:                      # 空列表也重试：词库可能刚用 fetch_tags.py 下好
         return _TAGS
     with _TAG_LOCK:
-        if _TAGS is not None:
+        if _TAGS:
             return _TAGS
         import csv
         rows = []
@@ -543,10 +543,11 @@ def my_tag_usage():
 def panel_index():
     """构建 {二级名: [词...]}（按图量降序）＋ 个人常用榜。懒加载只做一次。"""
     global _PANEL
-    if _PANEL is not None:
+    # 判空要看 by_sub：_PANEL 里还有 mine 字段，光判 _PANEL 会在词库为空时误认为已加载
+    if _PANEL and _PANEL.get("by_sub"):
         return _PANEL
     with _PANEL_LOCK:
-        if _PANEL is not None:
+        if _PANEL and _PANEL.get("by_sub"):
             return _PANEL
         usage = my_tag_usage()
         by_sub, seen = {}, {}
