@@ -501,12 +501,14 @@ def profile_delete(pid):
 def profile_touch(ids, bump=1):
     with _lock:
         d = profile_load()
+        n = 0
         for it in d["items"]:
             if it.get("id") in ids:
                 it["used"] = int(it.get("used", 0)) + bump
                 it["updated"] = time.time()
+                n += 1          # 只数真正改到的，别把不存在的 id 也算上
         profile_save(d)
-        return len(ids)
+        return n
 
 
 # ────────────────────────── 中文标签库（本地 CSV，零云端零 LLM）──────────────────────────
