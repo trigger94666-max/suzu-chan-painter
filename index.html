@@ -133,6 +133,25 @@
              background:#243040;font-size:11px;font-family:ui-monospace,Consolas,monospace}
   #psel span i{cursor:pointer;color:var(--dim);font-style:normal;padding:0 3px;border-radius:4px}
   #psel span i:hover{color:var(--bad);background:#00000040}
+  /* ── 配置档：整套参数快照，点一下全填上 ── */
+  #profilebox{flex:0 0 auto;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:6px;
+              background:linear-gradient(180deg,rgba(126,231,135,.05),rgba(255,255,255,.01))}
+  #fhead{display:flex;align-items:center;gap:7px;padding:7px 10px;cursor:pointer;
+         font-size:12px;color:var(--dim);user-select:none}
+  #fhead:hover{color:var(--fg)}
+  #fhead .fcar{font-size:10px;transition:transform .16s;display:inline-block}
+  #profilebox.open #fhead .fcar{transform:rotate(90deg)}
+  #fhead b{color:var(--fg);font-weight:600}
+  #fbody{border-top:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:7px}
+  #flist{display:flex;flex-wrap:wrap;gap:5px;align-items:flex-start}
+  .fchip{display:inline-flex;align-items:center;gap:3px;padding:3px 4px 3px 9px;border-radius:7px;
+         border:1px solid var(--line);background:#131f1a;color:var(--fg);font-size:12px;cursor:pointer;
+         user-select:none;white-space:nowrap;transition:border-color .12s,background .12s}
+  .fchip:hover{border-color:var(--acc);background:#182a22}
+  .fchip i{cursor:pointer;color:var(--dim);font-style:normal;padding:0 3px;border-radius:4px}
+  .fchip i:hover{color:var(--bad);background:#00000040}
+  .fchip small{color:var(--dim);font-size:10px;margin-left:2px}
+
   /* ── 预设：用户自己维护的 prompt 片段 · 可折叠 · 默认收起 ── */
   #presetbox{flex:0 0 auto;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:6px;
              background:linear-gradient(180deg,rgba(79,179,232,.045),rgba(255,255,255,.01))}
@@ -255,6 +274,14 @@
       <div id="pbody" hidden>
         <div id="plist"></div>
         <div id="pedit" hidden></div>
+      </div>
+    </div>
+
+    <div id="profilebox">
+      <div id="fhead"><span class="fcar">▸</span><b>配置档</b><span class="hint" id="fcount" style="display:inline"></span>
+        <span class="hint" style="display:inline;margin-left:auto">点一下 → 线 / LoRA / 强度 / 参数 整套填上</span></div>
+      <div id="fbody" hidden>
+        <div id="flist"></div>
       </div>
     </div>
 
@@ -413,6 +440,79 @@ function updRun(){
 }
 TAGTA.addEventListener("input",updRun);
 $("#perprompt").addEventListener("input",updRun);
+
+/* ---------- 配置档：整套参数一键套用 ---------- */
+let PROFILES=[];
+async function loadProfiles(){
+  try{ PROFILES=(await jget("/api/profiles")).items||[]; }catch(e){ PROFILES=[]; }
+  renderProfiles();
+}
+function renderProfiles(){
+  $("#fcount").textContent = PROFILES.length ? `（${PROFILES.length}）` : "";
+  if(!PROFILES.length){
+    $("#flist").innerHTML='<span class="hint" style="font-size:12px">还没有配置档。调好上面那套参数，点右边「+ 存当前配置」。</span>'+
+      '<button id="fnew">+ 存当前配置</button>';
+    return;
+  }
+  $("#flist").innerHTML = PROFILES.map(p=>{
+    const ln = esc(p.line||"");
+    const lo = p.lora ? "+ "+esc(String(p.lora).replace(/\.safetensors$/i,"").slice(0,18))+"@"+(p.lora_strength??"-") : "";
+    return `<span class="fchip" data-f="${p.id}" title="${esc(p.note||"")}">${esc(p.name)}<small>${ln} ${lo}</small><i data-fdel="${p.id}" title="删除这个配置档">✕</i></span>`;
+  }).join("") + `<button id="fnew" title="把当前 UI 里的线 / LoRA / 参数存成一条配置档">+ 存当前配置</button>`;
+}
+$("#fhead").onclick=()=>{
+  const box=$("#profilebox"), open=!box.classList.contains("open");
+  box.classList.toggle("open",open); $("#fbody").hidden=!open;
+};
+$("#flist").onclick=async e=>{
+  if(e.target.closest("#fnew")) return saveProfileFromUI();
+  const del=e.target.closest("i[data-fdel]");
+  if(del){ e.stopPropagation();
+    if(!confirm("删掉这个配置档？")) return;
+    try{ await jpost("/api/profiles/delete",{id:del.dataset.fdel}); log("配置档已删"); await loadProfiles(); }
+    catch(err){ log("删除失败："+err.message); }
+    return;
+  }
+  const chip=e.target.closest("span[data-f]");
+  if(!chip) return;
+  const p=PROFILES.find(x=>x.id===chip.dataset.f);
+  if(p) applyProfile(p);
+};
+function applyProfile(p){
+  if(p.line){ $("#line").value=p.line; applyLine(); }
+  if(p.lora!==undefined) $("#lora").value=p.lora||"";
+  if(p.lora_strength!=null) $("#strength").value=p.lora_strength;
+  if(p.lora2!==undefined) $("#lora2").value=p.lora2||"";
+  if(p.lora2_strength!=null) $("#strength2").value=p.lora2_strength;
+  if(p.width) $("#w").value=p.width;
+  if(p.height) $("#h").value=p.height;
+  if(p.steps) $("#steps").value=p.steps;
+  if(p.cfg!=null) $("#cfg").value=p.cfg;
+  if(p.prompt) $("#prompts").value=p.prompt;
+  if(p.negative) $("#negative").value=p.negative;
+  if(p.per_prompt) $("#perprompt").value=p.per_prompt;
+  updRun();
+  log(`已套用「${p.name}」：${p.line} + ${p.lora||"无 LoRA"}@${p.lora_strength??"-"} · ${p.width}×${p.height} · ${p.steps}步 CFG${p.cfg}`);
+  jpost("/api/profiles/touch",{ids:[p.id]}).catch(()=>{});
+}
+async function saveProfileFromUI(){
+  const name=(prompt("给这套配置起个名字：","")||"").trim();
+  if(!name) return;
+  const body={
+    name, line:$("#line").value, lora:$("#lora").value||"",
+    lora_strength:parseFloat($("#strength").value)||1.0,
+    lora2:$("#lora2").value||"", lora2_strength:parseFloat($("#strength2").value)||0.8,
+    width:+$("#w").value, height:+$("#h").value,
+    steps:+$("#steps").value||null, cfg:+$("#cfg").value||null,
+    prompt:$("#prompts").value.trim(), negative:$("#negative").value.trim(),
+    per_prompt:+$("#perprompt").value||1,
+    note:(prompt("备注（可留空）：","")||"") };
+  try{
+    const r=await jpost("/api/profiles",body);
+    if(r.ok){ log("已存配置档「"+name+"」"); await loadProfiles(); }
+  }catch(e){ log("存失败："+e.message); }
+}
+loadProfiles();
 /* ---------- 预设：折叠 + 点用 + 编辑 ---------- */
 $("#phead").onclick=()=>{
   const box=$("#presetbox"), open=!box.classList.contains("open");

@@ -6,6 +6,7 @@ __pycache__/
 prompts.json
 lora_usage.json
 options_cache.json
+profiles.json
 *.log
 *.bak-*
 config.json

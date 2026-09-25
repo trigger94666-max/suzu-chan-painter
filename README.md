@@ -10,6 +10,7 @@
 - **说人话 → 提示词** —— 中文描述交给 LLM 翻成 danbooru tag 串（写实线则是摄影描述）。可选功能，不配也能用。
 - **批量跑图** —— 一行一个 prompt，每行可出 N 张（seed 自动递增，不会出一堆一样的）。
 - **提示词库** —— 存 / 搜 / 分组 / ★置顶，也能从图墙反查导入。
+- **配置档** —— 把「线 + LoRA + 强度 + 尺寸 / 步数 / CFG」存成一条，点一下整套填上，不用每次挨个改下拉。旁边还有**预设**（可点击拼进提示词框的词片）。
 - **图墙** —— 看结果、读 PNG 元数据、一键载入某张图的全部参数。
 - **ComfyUI 按需开关** —— 不跑图不占显存，要用再唤醒。
 
@@ -94,6 +95,22 @@ POST /api/run
 ```
 
 跑图台会按需唤醒 ComfyUI、跑完释放显存、产物进图墙。
+
+配置档（整套参数一键套用）：
+
+```
+GET  /api/profiles          → {"items":[{id,name,line,lora,lora_strength,width,...}]}
+POST /api/profiles          → 新建或更新（带 id 则更新），字段同上 + prompt/negative
+POST /api/profiles/delete   {"id":"p123"}
+POST /api/profiles/touch    {"ids":["p123"]}       # 用一次计数 +1
+```
+
+预设（可点击拼进提示词框的词片）：
+
+```
+GET  /api/presets           / POST /api/presets         {name, tags, note, neg}
+POST /api/presets/delete    {"ids":[...]}
+```
 
 ## 文件结构
 

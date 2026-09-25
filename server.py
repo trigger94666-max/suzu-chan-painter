@@ -427,6 +427,88 @@ def submit(batch):
     return ids
 
 
+# ────────────────────────── 配置档（整套参数一键套用）──────────────────────────
+# 「跑一套参数」的完整快照：线 + LoRA + 强度 + 尺寸 + 采样。点一下就全填上，
+# 省得每次在 UI 里挨个改下拉。数据层通用，不预设内容。
+PROFILE_STORE = os.path.join(HERE, "profiles.json")
+_PROFILE_FIELDS = ("name", "note", "line", "lora", "lora_strength", "lora2", "lora2_strength",
+                   "width", "height", "steps", "cfg", "sampler", "scheduler", "prompt", "negative",
+                   "prefix", "per_prompt")
+
+
+def profile_load():
+    try:
+        with open(PROFILE_STORE, encoding="utf-8") as f:
+            d = json.load(f)
+        if isinstance(d, dict) and isinstance(d.get("items"), list):
+            return d
+    except Exception:
+        pass
+    return {"items": []}
+
+
+def profile_save(d):
+    tmp = PROFILE_STORE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, PROFILE_STORE)
+
+
+def profile_upsert(b):
+    name = (b.get("name") or "").strip()
+    if not name:
+        raise ValueError("name 不能空")
+    with _lock:
+        d = profile_load()
+        pid = b.get("id")
+        now = time.time()
+        item = {}
+        for k in _PROFILE_FIELDS:
+            if k in b:
+                v = b.get(k)
+                if k in ("lora_strength", "lora2_strength", "cfg"):
+                    v = float(v) if v not in (None, "") else None
+                elif k in ("width", "height", "steps", "per_prompt"):
+                    v = int(v) if v not in (None, "") else None
+                elif isinstance(v, str):
+                    v = v.strip()
+                item[k] = v
+        for it in d["items"]:
+            if it.get("id") == pid:
+                it.update(item)
+                it["updated"] = now
+                profile_save(d)
+                return pid
+        pid = "p%d" % int(now * 1000)
+        item["id"] = pid
+        item["used"] = 0
+        item["created"] = now
+        item["updated"] = now
+        d["items"].append(item)
+        profile_save(d)
+        return pid
+
+
+def profile_delete(pid):
+    with _lock:
+        d = profile_load()
+        n = len(d["items"])
+        d["items"] = [x for x in d["items"] if x.get("id") != pid]
+        profile_save(d)
+        return n - len(d["items"])
+
+
+def profile_touch(ids, bump=1):
+    with _lock:
+        d = profile_load()
+        for it in d["items"]:
+            if it.get("id") in ids:
+                it["used"] = int(it.get("used", 0)) + bump
+                it["updated"] = time.time()
+        profile_save(d)
+        return len(ids)
+
+
 # ────────────────────────── 中文标签库（本地 CSV，零云端零 LLM）──────────────────────────
 TAG_DIR = CFG["tag_dir"]
 _TAGS = None
@@ -891,6 +973,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/options":
             return self._json(options())
 
+        if path == "/api/profiles":
+            return self._json({"ok": True, "items": profile_load()["items"]})
+
         if path == "/api/tags":
             q = (qs.get("q") or [""])[0]
             try:
@@ -993,6 +1078,14 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/prompt-help":
                 return self._json(prompt_help(body.get("zh", ""), body.get("line", "anima"),
                                               int(body.get("n", 1))))
+            if u.path == "/api/profiles":
+                if self.command == "GET":
+                    return self._json({"ok": True, "items": profile_load()["items"]})
+                return self._json({"ok": True, "id": profile_upsert(body)})
+            if u.path == "/api/profiles/delete":
+                return self._json({"ok": True, "removed": profile_delete(body.get("id"))})
+            if u.path == "/api/profiles/touch":
+                return self._json({"ok": True, "n": profile_touch(body.get("ids", []))})
         except Exception as e:
             return self._json({"ok": False, "error": str(e)}, 500)
 
