@@ -132,7 +132,7 @@ LoRA 想显示中文别名，写在自己 `config.json` 的 `lora_meta` 段里�
 
 ```
 POST /api/run
-{"line":"anima","prefix":"mybatch","jobs":[{"suffix":"a","prompt":"1girl, solo","seed":123}]}
+{"line":"example","prefix":"mybatch","jobs":[{"suffix":"a","prompt":"1girl, solo","seed":123}]}
 ```
 
 跑图台会按需唤醒 ComfyUI、跑完释放显存、产物进图墙。
