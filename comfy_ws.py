@@ -27,13 +27,39 @@ comfy_ws.py —— 零依赖的 ComfyUI 进度监听（标准库 WebSocket 客�
 """
 
 import base64
+import hashlib
 import json
 import os
 import socket
 import struct
 import threading
 import time
+import uuid
 from collections import OrderedDict
+
+# 帧长度上限：ComfyUI 发的都是很小的 JSON，正常远用不到。
+# 设上限是为了防止异常/恶意服务端声称一个巨大的长度，把线程卡死在 recv 里。
+MAX_FRAME = 2 * 1024 * 1024
+
+# 状态机推导用的哨兵：区分「没传这个字段」和「传了这个字段但值是 None」。
+# 因为 current_node=None 是有意义的（表示当前节点跑完了），不能被过滤掉。
+_UNSET = object()
+
+# 状态只能往前走，不能倒退（GPT 审出来的：terminal 之间互相覆盖会让页面
+# 出现"明明跑完了又变回运行中"这种怪现象）。
+_ORDER = {"queued": 0, "running": 1, "success": 2, "failed": 2, "cancelled": 2}
+
+
+def _can_enter(cur, new):
+    """cur -> new 这个状态迁移允不允许？"""
+    if new is None or new == cur:
+        return True
+    if cur is None:
+        return True
+    a, b = _ORDER.get(cur, -1), _ORDER.get(new, -1)
+    if a < 0 or b < 0:
+        return True                     # 未知状态不拦，避免误伤
+    return b > a                        # 同级别（terminal 之间）不许覆盖
 
 # ─────────────────────── 最小 WebSocket 客户端 ───────────────────────
 
@@ -70,10 +96,30 @@ class _WS:
             if not chunk:
                 raise ConnectionError("WS handshake: connection closed")
             head += chunk
+            if len(head) > 65536:        # 头部异常大 -> 不是 WebSocket 服务
+                raise ConnectionError("WS handshake: header too large")
         head, _, rest = head.partition(b"\r\n\r\n")
         self._buf = rest
-        if b"101" not in head.split(b"\r\n")[0]:
-            raise ConnectionError("WS handshake failed: %s" % head.split(b"\r\n")[0][:80])
+
+        lines = head.split(b"\r\n")
+        status = lines[0]
+        # 严格匹配状态行，避免 body 里随便出现 "101" 就误判
+        if not status.startswith(b"HTTP/1.1 101 "):
+            raise ConnectionError("WS handshake failed: %s" % status[:80])
+
+        # RFC 6455：必须校验服务端返回的 Accept（客户端按固定 GUID 算）
+        want = base64.b64encode(
+            hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()
+        ).decode()
+        got = None
+        for ln in lines[1:]:
+            if b":" in ln:
+                k, _, v = ln.partition(b":")
+                if k.strip().lower() == b"sec-websocket-accept":
+                    got = v.strip().decode("latin-1")
+                    break
+        if got != want:
+            raise ConnectionError("WS handshake: bad Sec-WebSocket-Accept (%r)" % (got,))
         return self
 
     # ---- 底层读写 ----
@@ -99,10 +145,16 @@ class _WS:
         self.sock.sendall(header + mask + masked)
 
     def recv(self):
-        """收一条完整文本消息（处理分片、回复 ping、自动跳过 pong）。"""
+        """收一条完整文本消息。
+
+        处理的协议约束（GPT 审出来的）：分片必须按 TEXT/CONT 顺序、
+        控制帧不能分片且 ≤125 字节、帧长度有上限。
+        """
         parts = []
+        started = None                  # 当前分片消息的起始 opcode（None = 不在分片中）
         while True:
             b0, b1 = struct.unpack("!BB", self._recv_exact(2))
+            fin = bool(b0 & 0x80)
             opcode = b0 & 0x0F
             masked = b1 & 0x80
             ln = b1 & 0x7F
@@ -110,20 +162,43 @@ class _WS:
                 ln = struct.unpack("!H", self._recv_exact(2))[0]
             elif ln == 127:
                 ln = struct.unpack("!Q", self._recv_exact(8))[0]
+            if ln > MAX_FRAME:
+                raise ConnectionError("WS frame too large: %d" % ln)
             mask = self._recv_exact(4) if masked else None
             data = self._recv_exact(ln) if ln else b""
-            if mask:
+            if mask:                    # 服务端本不该加掩码，这里宽容处理
                 data = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
 
-            if opcode == 0x8:      # close
-                raise ConnectionError("WS closed by peer")
-            if opcode == 0x9:      # ping -> pong
-                self._send_frame(0xA, data)
-                continue
-            if opcode == 0xA:      # pong
-                continue
+            # ---- 控制帧（0x8/0x9/0xA）：不可分片、payload ≤125 ----
+            if opcode >= 0x8:
+                if not fin:
+                    raise ConnectionError("WS protocol error: fragmented control frame")
+                if ln > 125:
+                    raise ConnectionError("WS protocol error: control frame too long")
+                if opcode == 0x8:
+                    try:
+                        self._send_frame(0x8, data[:125])   # 按 RFC 回一个 Close
+                    except Exception:
+                        pass
+                    raise ConnectionError("WS closed by peer")
+                if opcode == 0x9:
+                    self._send_frame(0xA, data)
+                    continue
+                continue                # 0xA pong
+
+            # ---- 数据帧：校验分片顺序 ----
+            if opcode == 0x0:           # continuation
+                if started is None:
+                    raise ConnectionError("WS protocol error: continuation without start")
+            elif opcode in (0x1, 0x2):
+                if started is not None:
+                    raise ConnectionError("WS protocol error: new message while fragmented")
+                started = opcode
+            else:
+                raise ConnectionError("WS protocol error: unknown opcode 0x%x" % opcode)
+
             parts.append(data)
-            if b0 & 0x80:          # FIN
+            if fin:
                 return b"".join(parts)
 
     def close(self):
@@ -201,11 +276,16 @@ class ProgressMonitor:
                 j["updated"] = time.time()
 
     def snapshot(self, prompt_id=None):
+        """拿状态快照。锁内把可变字段复制出来，避免后台线程边改边被序列化。"""
         with self._lock:
+            def _copy(j):
+                d = dict(j)
+                d["images"] = list(j.get("images") or [])
+                return d
             if prompt_id:
                 j = self._jobs.get(prompt_id)
-                return dict(j) if j else None
-            return {k: dict(v) for k, v in self._jobs.items()}
+                return _copy(j) if j else None
+            return {k: _copy(v) for k, v in self._jobs.items()}
 
     def active(self):
         """还有没跑完的任务？"""
@@ -231,8 +311,10 @@ class ProgressMonitor:
     def _loop(self):
         backoff = 1.0
         while not self._stop.is_set():
+            ws = None                       # connect() 抛异常时 finally 不会 NameError
             try:
-                ws = _WS(self.host, self.port, "/ws?clientId=suzune-ui").connect()
+                url = "/ws?clientId=%s" % uuid.uuid4().hex   # 唯一 id，多实例不撞
+                ws = _WS(self.host, self.port, url).connect()
                 self._connected = True
                 backoff = 1.0
                 self._resync()                     # 重连后校准
@@ -247,55 +329,65 @@ class ProgressMonitor:
                 self._connected = False
                 if self._stop.is_set():
                     break
-                time.sleep(backoff)
+                self._stop.wait(backoff)    # 用 wait 而不是 sleep：stop() 能立刻唤醒
                 backoff = min(backoff * 2, 15.0)
             finally:
-                try:
-                    ws.close()
-                except Exception:
-                    pass
+                if ws is not None:
+                    try:
+                        ws.close()
+                    except Exception:
+                        pass
         self._connected = False
 
     def _resync(self):
-        """断线重连后：把 /queue 里的标 running/queued，/history 里的标终态。"""
+        """断线重连后：把 /queue 里的标 running/queued，/history 里的标终态。
+
+        注意：这里**不能**直接赋值 status，必须过 _can_enter——
+        否则会把 WS 已经收到的新状态（比如 success）倒退回去。
+        """
         import urllib.request
         base = "http://%s:%d" % (self.host, self.port)
+
+        def _bump(pid, st, **kw):
+            """在锁内做一次"只前进"的状态更新。"""
+            j = self._jobs.get(pid)
+            if not j:
+                return
+            if not _can_enter(j.get("status"), st):
+                return
+            j["status"] = st
+            for k, v in kw.items():
+                if v is not _UNSET:
+                    j[k] = v
+            j["updated"] = time.time()
+
         try:
             with urllib.request.urlopen(base + "/queue", timeout=8) as r:
                 q = json.loads(r.read().decode())
-            running = {x[1] for x in q.get("queue_running", []) if len(x) > 1}
             with self._lock:
                 for x in q.get("queue_running", []):
-                    if len(x) > 1 and x[1] in self._jobs:
-                        self._jobs[x[1]]["status"] = "running"
+                    if len(x) > 1:
+                        _bump(x[1], "running")
                 for x in q.get("queue_pending", []):
-                    if len(x) > 1 and x[1] in self._jobs:
-                        self._jobs[x[1]]["status"] = "queued"
-                for pid, j in self._jobs.items():
-                    if j["status"] == "queued" and pid in running:
-                        j["status"] = "running"
+                    if len(x) > 1:
+                        _bump(x[1], "queued")
         except Exception:
             return
         try:
             with urllib.request.urlopen(base + "/history?max_items=50", timeout=8) as r:
                 hist = json.loads(r.read().decode())
             for pid, rec in hist.items():
-                with self._lock:
-                    j = self._jobs.get(pid)
-                    if not j or j["status"] in TERMINAL:
-                        continue
                 st = (rec.get("status") or {})
                 ok = st.get("status_str") == "success" or st.get("completed")
                 images = self._extract_images(rec)
                 with self._lock:
+                    j = self._jobs.get(pid)
+                    if not j or not _can_enter(j.get("status"), "success" if ok else "failed"):
+                        continue
                     if ok:
-                        j["status"] = "success"
-                        j["progress"] = 1.0
-                        j["images"] = images
+                        _bump(pid, "success", progress=1.0, images=images)
                     else:
-                        j["status"] = "failed"
-                        j["error"] = self._extract_error(rec) or "执行失败"
-                    j["updated"] = time.time()
+                        _bump(pid, "failed", error=self._extract_error(rec) or "执行失败")
         except Exception:
             return
 
@@ -379,9 +471,15 @@ class ProgressMonitor:
                 j = self._new_job(pid, "", None)
                 self._jobs[pid] = j
                 self._trim()
-            if j["status"] in TERMINAL and kw.get("status") not in TERMINAL:
-                return
-            j.update({k: v for k, v in kw.items() if v is not None})
+            # 状态只许往前走：防止 /history 校准把已经 success 的任务写回 running
+            new_st = kw.get("status")
+            if "status" in kw and not _can_enter(j.get("status"), new_st):
+                kw.pop("status", None)
+                new_st = None
+                if not kw:
+                    return
+            # 用 _UNSET 而不是 None 做过滤：current_node=None 是有意义的（节点跑完）
+            j.update({k: v for k, v in kw.items() if v is not _UNSET})
             j["updated"] = time.time()
 
 
