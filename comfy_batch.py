@@ -8,8 +8,8 @@
 
 batch.json：
 {
-  "line": "anima" | "anima_turbo" | "zimage" | "krea2" | "v23",
-  "lora": "consistent_char_min_park_z_image.safetensors" | null,
+  "line": "<线名，见 config.json 的 lines 段；默认只有示例线 example>",
+  "lora": "<LoRA 文件名>" | null,
   "lora_strength": 0.8,
   "negative": "（可选，覆盖该线默认负面）",
   "width": 832, "height": 1216,
@@ -161,7 +161,7 @@ def main():
     a = ap.parse_args()
 
     b = json.load(open(a.batch, encoding="utf-8"))
-    line_name = b.get("line", "anima")
+    line_name = b.get("line") or (list(LINES)[0] if LINES else "")
     if line_name not in LINES:
         sys.exit("unknown line: %s (options: %s)" % (line_name, "/".join(LINES)))
     spec = LINES[line_name]

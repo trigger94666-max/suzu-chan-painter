@@ -171,16 +171,26 @@ LORA_META = {k.lower(): (v[0], v[1], bool(v[2]))
 
 
 def lora_line(name):
+    """按文件名猜这个 LoRA 属于哪条线。
+
+    ⚠️ 猜出来的线名**可能并不存在**——下面这几条规则（zimage/krea2/v23）来自
+    开发机的配置，而用户零配置时只有一条示例线。所以结果必须过一道「这条线
+    在不在」的检查，不在就退回现成的第一条；否则前端按「本线优先」过滤会把
+    所有 LoRA 都滤掉，默认视图一个都不显示（issue #1）。
+    """
     n = name.lower()
+    hit = None
     if n in LORA_META:
-        return LORA_META[n][0]
-    if n.startswith("z-") or "z_image" in n or n.startswith("gp_zimage") or "zimage" in n:
-        return "zimage"
-    if n.startswith("krea2"):
-        return "krea2"
-    if n.startswith("deepseekchan"):
-        return "v23"
-    return "anima"
+        hit = LORA_META[n][0]
+    elif n.startswith("z-") or "z_image" in n or n.startswith("gp_zimage") or "zimage" in n:
+        hit = "zimage"
+    elif n.startswith("krea2"):
+        hit = "krea2"
+    elif n.startswith("deepseekchan"):
+        hit = "v23"
+    if hit and hit in LINE_NAMES:
+        return hit
+    return LINE_NAMES[0] if LINE_NAMES else ""
 
 
 USAGE_FILE = os.path.join(HERE, "lora_usage.json")
@@ -283,7 +293,7 @@ def _read_env_key(name, path=None):
     return ""
 
 
-def prompt_help(zh, line="anima", n=1):
+def prompt_help(zh, line=None, n=1):
     zh = (zh or "").strip()
     if not zh:
         return {"ok": False, "error": "中文描述是空的"}
@@ -410,7 +420,8 @@ def options():
 
 
 def submit(batch):
-    line = batch.get("line", "anima")
+    # 缺省用「当前实际存在的第一条线」，别写死名字——用户零配置时没有 anima（issue #1）
+    line = batch.get("line") or (LINE_NAMES[0] if LINE_NAMES else "")
     if not cb or line not in cb.LINES:
         raise RuntimeError("unknown line: %s" % line)
     spec = cb.LINES[line]
@@ -1381,7 +1392,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(ensure_comfy(wait=int(body.get("wait", 150))))
                 return self._json(comfy_stop())
             if u.path == "/api/prompt-help":
-                return self._json(prompt_help(body.get("zh", ""), body.get("line", "anima"),
+                return self._json(prompt_help(body.get("zh", ""),
+                                              body.get("line") or (LINE_NAMES[0] if LINE_NAMES else ""),
                                               int(body.get("n", 1))))
             if u.path == "/api/profiles":
                 if self.command == "GET":
