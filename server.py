@@ -19,6 +19,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from config import CFG                 # 配置：内置默认 < config.json < 环境变量
+import config as cfgmod                # 网页改设置时用它写回 config.json
 
 COMFY = CFG["comfy_url"]
 OUT = CFG["output_dir"]
@@ -31,6 +32,46 @@ try:
 except Exception as e:                 # 缺文件也不崩，只是没线可选
     cb = None
     CB_ERR = str(e)
+
+# 进度监听：ComfyUI 的采样进度只走 WebSocket，这里用标准库自己收（见 comfy_ws.py）
+# 懒启动——第一次跑图时才连，没跑图就完全静默，不占资源
+try:
+    import comfy_ws
+    _mon = comfy_ws.ProgressMonitor(
+        host=urllib.parse.urlparse(CFG["comfy_url"]).hostname or "127.0.0.1",
+        port=urllib.parse.urlparse(CFG["comfy_url"]).port or 8188,
+    )
+except Exception:
+    comfy_ws = None
+    _mon = None
+
+# 人话 → tag：可插拔 Provider（默认关闭，见 config.json 的 tag_translator 段）
+try:
+    import tagtr
+    _TAGTR_CFG = CFG.get("tag_translator") or {}
+except Exception:
+    tagtr = None
+    _TAGTR_CFG = {}
+
+_VOCAB = None
+
+
+def vocab():
+    """字典词表缓存（第一次用到才建）。"""
+    global _VOCAB
+    if _VOCAB is None and tagtr:
+        try:
+            _VOCAB = tagtr.Vocabulary(load_tags())
+        except Exception:
+            _VOCAB = tagtr.Vocabulary([])
+    return _VOCAB
+
+
+def monitor():
+    """拿进度监听器（没有就返回 None）；第一次调用时启动后台线程。"""
+    if _mon and not _mon._thread:
+        _mon.start()
+    return _mon
 
 # 负面词覆盖：comfy_batch.py 里的默认值是**开源干净版**（不含露骨解剖词），
 # 本机要完整防崩坏词就写在自己的 config.json 的 negatives 段里，这里盖上去。
@@ -378,22 +419,46 @@ def submit(batch):
     h = int(batch.get("height") or spec["height"])
     steps = int(batch.get("steps") or spec["steps"])
     cfg = float(batch.get("cfg") or spec["cfg"])
-    # 用户没点 LoRA 时，走该线的默认 LoRA（如 anima_turbo 自带 TURBO_for_ANIMA + 强度 1.0）
-    user_lora = batch.get("lora") or None
-    if user_lora:
-        lora = user_lora
-        strength = float(batch.get("lora_strength") if batch.get("lora_strength") is not None else 0.8)
+    # ── LoRA 链 ──────────────────────────────────────────────
+    # 优先 loras=[{name, strength}, ...]（跑图台 UI 最多 4 槽，任意个数）；
+    # 没传则退回 lora/lora2 老写法——老调用行为完全不变。
+    _raw = batch.get("loras")
+    chain = None
+    if isinstance(_raw, list) and _raw:
+        chain = []
+        for it in _raw:
+            if not isinstance(it, dict):
+                continue
+            nm = it.get("name")
+            if not nm:
+                continue
+            st = it.get("strength")
+            chain.append((nm, float(st) if st is not None else 0.8))
+        if not chain:
+            chain = None
+    if chain:
+        lora, strength = chain[0]
+        lora2, strength2 = (chain[1] if len(chain) > 1 else (None, 0.8))
     else:
-        lora = spec.get("default_lora")
-        strength = float(spec.get("default_lora_strength", 0.8))
-    # 第二 LoRA（可选，叠加）：2026-09-22 加，老调用不传则行为不变
-    lora2 = batch.get("lora2") or None
-    strength2 = float(batch.get("lora2_strength") if batch.get("lora2_strength") is not None else 0.8)
+        user_lora = batch.get("lora") or None
+        if user_lora:
+            lora = user_lora
+            strength = float(batch.get("lora_strength") if batch.get("lora_strength") is not None else 0.8)
+        else:
+            lora = spec.get("default_lora")
+            strength = float(spec.get("default_lora_strength", 0.8))
+        # 第二 LoRA（可选，叠加）：2026-09-22 加，老调用不传则行为不变
+        lora2 = batch.get("lora2") or None
+        strength2 = float(batch.get("lora2_strength") if batch.get("lora2_strength") is not None else 0.8)
     # 每个 prompt 出几张：2026-09-22 加（一行一张抽卡太慢）
     per = max(1, min(int(batch.get("per_prompt") or 1), 16))
     prefix = re.sub(r"[^A-Za-z0-9_\-]", "_", str(batch.get("prefix") or "ui"))[:40]
-    lora_use_bump(lora)
-    lora_use_bump(lora2)
+    if chain:
+        for _nm, _ in chain:
+            lora_use_bump(_nm)
+    else:
+        lora_use_bump(lora)
+        lora_use_bump(lora2)
 
     # 按需唤醒：休眠态（省显存）自动拉起来
     if not comfy_alive():
@@ -420,9 +485,14 @@ def submit(batch):
             seed = seed0 + k        # 固定 seed 时逐张递增，否则 N 张会一模一样
             g = cb.build_graph(spec, "%s_%s" % (prefix, suffix), j.get("prompt", ""), neg,
                                seed, lora, strength, w, h, steps, cfg,
-                               lora2=lora2, strength2=strength2)
+                               lora2=lora2, strength2=strength2, loras=chain)
             r = cb.post("/prompt", {"prompt": g, "client_id": "suzune-ui"})
-            ids.append({"suffix": suffix, "seed": seed, "prompt_id": r.get("prompt_id")})
+            pid = r.get("prompt_id")
+            if pid:
+                m = monitor()
+                if m:
+                    m.track(pid, suffix="%s_%s" % (prefix, suffix), seed=seed)
+            ids.append({"suffix": suffix, "seed": seed, "prompt_id": pid})
             time.sleep(1)
     return ids
 
@@ -587,6 +657,87 @@ def search_tags(q, limit=20):
 
     hits.sort(key=key)
     return [{k: v for k, v in t.items() if k != "_hay"} for t in hits[:limit]]
+
+
+# ─────────────────── 角色参考（AnimaDex 代理）───────────────────
+# AnimaDex（github.com/zetaneko/AnimaDex，MIT）是 Anima 生成的角色/LoRA 索引站，
+# 它的 /api/characters/search 直接给「角色名 + Danbooru tags + CivitAI LoRA 链接」，
+# 正好补上跑图台缺的一环：中文角色 → tags → LoRA。
+# 这里只做代理 + 短缓存，不复制它的本地库（免得跟着它的数据更新跑）。
+ANIMADEX = (CFG.get("animadex_url") or "https://animadex.net").rstrip("/")
+_CHAR_CACHE = {}
+_CHAR_TTL = 300.0
+
+
+_CJK = None
+
+
+def _has_cjk(s):
+    global _CJK
+    if _CJK is None:
+        import re as _re
+        _CJK = _re.compile(r"[\u3400-\u9fff\u3040-\u30ff]")
+    return bool(_CJK.search(s or ""))
+
+
+def _raw_char_search(q, page, size, has_lora):
+    url = "%s/api/characters/search?%s" % (ANIMADEX, urllib.parse.urlencode(
+        {"q": q, "page": page, "page_size": size, **({"has_lora": 1} if has_lora else {})}))
+    req = urllib.request.Request(url, headers={"User-Agent": "suzu-chan-painter", "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        d = json.loads(r.read().decode("utf-8", "replace"))
+    return {"total": d.get("total", 0), "page": d.get("page", page),
+            "results": [{"slug": x.get("slug"), "name": x.get("name"),
+                         "copyright": x.get("copyright_name") or x.get("copyright"),
+                         "trigger": x.get("trigger"), "tags": x.get("tags") or [],
+                         "count": x.get("count"),
+                         "thumb": x.get("thumb_url") or x.get("img_url"), "url": x.get("url"),
+                         "loras": x.get("loras") or []}
+                        for x in (d.get("results") or [])]}
+
+
+def char_search(q, page=1, size=12, has_lora=False):
+    """AnimaDex 的库是纯英文的。中文名 → 先用 LLM 译成英文名再搜。
+
+    译名这一步复用 tag_translator 那份 provider 配置（用户只接一个 key）。
+    没接 key 也不报错，就是搜不到中文名而已。
+    """
+    q = (q or "").strip()
+    if not q:
+        return {"ok": True, "total": 0, "results": []}
+    key = "%s|%s|%s|%s" % (q.lower(), page, size, int(bool(has_lora)))
+    hit = _CHAR_CACHE.get(key)
+    if hit and time.time() - hit[0] < _CHAR_TTL:
+        return hit[1]
+
+    translated_from = None
+    try:
+        out = _raw_char_search(q, page, size, has_lora)
+    except Exception as e:
+        return {"ok": False, "err": "AnimaDex 连不上：%s" % e, "results": []}
+
+    # 中文（或搜不到）→ 借 LLM 译成英文名再试一次
+    if out["total"] == 0 and _has_cjk(q):
+        if tagtr and tagtr.available(_TAGTR_CFG):
+            tr = tagtr.char_name_to_english(q, _TAGTR_CFG)
+            if tr.get("ok") and tr.get("name") and tr["name"].lower() != q.lower():
+                try:
+                    out2 = _raw_char_search(tr["name"], page, size, has_lora)
+                    if out2["total"]:
+                        out, translated_from = out2, {"input": q, "english": tr["name"]}
+                except Exception:
+                    pass
+        else:
+            out["hint"] = "中文名需要接一个 LLM（config.json 的 tag_translator）才能翻译；或直接用英文名搜"
+
+    out["ok"] = True
+    if translated_from:
+        out["translated_from"] = translated_from
+    _CHAR_CACHE[key] = (time.time(), out)
+    if len(_CHAR_CACHE) > 200:
+        for k in sorted(_CHAR_CACHE, key=lambda k: _CHAR_CACHE[k][0])[:100]:
+            _CHAR_CACHE.pop(k, None)
+    return out
 
 
 # ────────────────────────── 点选面板（8 类一级 · 二级 filter）──────────────────────────
@@ -1016,6 +1167,116 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/prompts":
             return self._json(prompts_list())
 
+        # ── 进度：任务状态（JSON，一次性快照）──────────────────────────
+        if path == "/api/jobs":
+            m = monitor()
+            if not m:
+                return self._json({"ok": False, "err": "progress monitor unavailable", "jobs": {}})
+            m2 = m.snapshot()
+            return self._json({"ok": True, "connected": m.connected, "jobs": m2,
+                               "active": m.active()})
+
+        # ── 进度：SSE 流（服务端推送，前端用 EventSource 接）──────────────
+        # 为什么用 SSE 而不是 WebSocket：浏览器端 EventSource 是原生 API，
+        # 后端只要按 text/event-stream 吐文本，零依赖下比手写 WS server 省事得多。
+        if path == "/api/progress":
+            m = monitor()
+            if not m:
+                return self._send(503, b"progress monitor unavailable", "text/plain; charset=utf-8")
+            want = [x for x in (qs.get("ids") or [""])[0].split(",") if x]
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            last_sig = None
+            try:
+                # 单次连接最多活 10 分钟，防止半死的连接一直挂着
+                deadline = time.time() + 600
+                while time.time() < deadline:
+                    snap = m.snapshot()
+                    if want:
+                        snap = {k: v for k, v in snap.items() if k in want}
+                    sig = json.dumps(snap, sort_keys=True, ensure_ascii=False)
+                    if sig != last_sig:                     # 只在变化时推，省流量
+                        payload = {"connected": m.connected, "jobs": snap,
+                                   "active": any(v["status"] not in ("success", "failed", "cancelled")
+                                                 for v in snap.values())}
+                        self.wfile.write(("data: %s\n\n" % json.dumps(payload, ensure_ascii=False)).encode("utf-8"))
+                        self.wfile.flush()
+                        last_sig = sig
+                    else:
+                        self.wfile.write(b": ping\n\n")     # 心跳，防中间层断连
+                        self.wfile.flush()
+                    time.sleep(0.5)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass                                        # 浏览器关了页面，正常
+            except Exception:
+                pass
+            return
+
+        # ── 分类：把一组 tag 映射到分类（已选词分组显示用）──────────────
+        # 返回 {一级分类: [二级名...]} 与 {tag: [二级名...]}，前端据此分组。
+        # 词表里查不到的 tag（用户手写、LoRA 触发词等）归到 "其他"。
+        if path == "/api/classify":
+            raw = (qs.get("tags") or [""])[0]
+            tags = [t.strip() for t in raw.split(",") if t.strip()]
+            detail, groups = {}, {}
+            for t in tags:
+                key = t.lower().replace(" ", "_")
+                subs = []
+                try:
+                    subs = list(_tagcls(key)) or []
+                except Exception:
+                    subs = []
+                detail[t] = subs
+                # 二级 -> 一级；一个 tag 可多归属
+                prims = []
+                for name, ss in _PRIMARY:
+                    for s in subs:
+                        if s in ss:
+                            prims.append(name)
+                            break
+                if not prims:
+                    prims = ["其他"]
+                for p in prims:
+                    groups.setdefault(p, []).append(t)
+            return self._json({"ok": True, "groups": groups, "detail": detail,
+                               "order": [n for n, _ in _PRIMARY] + ["其他"]})
+
+        # ── LLM 设置：网页上直接配，不用手改 config.json ──────────────
+        if path == "/api/llm-config":
+            tc = CFG.get("tag_translator") or {}
+            return self._json({
+                "ok": True,
+                "provider": tc.get("provider") or "",
+                "endpoint": tc.get("endpoint") or "",
+                "model": tc.get("model") or "",
+                "has_key": bool(tc.get("api_key")),
+                "available": bool(tagtr and tagtr.available(tc)),
+                "presets": cfgmod.PROVIDER_PRESETS,
+                "config_path": os.path.join(HERE, "config.json"),
+            })
+
+        # ── 人话转 tag 的状态（前端用它决定要不要显示翻译框）──────────
+        if path == "/api/translate-tags":
+            ok = bool(tagtr and tagtr.available(_TAGTR_CFG))
+            return self._json({"ok": True, "available": ok,
+                               "provider": (_TAGTR_CFG or {}).get("provider") or None,
+                               "vocab": (len(vocab()) if tagtr else 0)})
+
+        # ── 角色参考：代理 AnimaDex（角色 → tags → LoRA）───────────────
+        if path == "/api/charsearch":
+            try:
+                page = int((qs.get("page") or ["1"])[0])
+                size = int((qs.get("n") or ["12"])[0])
+            except ValueError:
+                page, size = 1, 12
+            return self._json(char_search((qs.get("q") or [""])[0],
+                                          page=max(1, page), size=max(1, min(size, 40)),
+                                          has_lora=bool((qs.get("lora") or [""])[0])))
+
         if path in ("/api/presets", "/api/chars"):
             return self._json(chars_list())
 
@@ -1048,6 +1309,46 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if u.path == "/api/run":
                 return self._json({"ok": True, "queued": submit(body)})
+            # 人话 → tag：完整 pipeline（LLM 出候选 → 词表校验 → fuzzy 纠错）
+            if u.path == "/api/translate-tags":
+                if not tagtr:
+                    return self._json({"ok": False, "err": "tagtr 模块缺失"})
+                r = tagtr.translate(body.get("text") or "", _TAGTR_CFG, vocab(),
+                                    cutoff=float(body.get("cutoff") or 0.86))
+                return self._json(r)
+
+            # 保存 LLM 设置（写回 config.json，带备份；改完立刻热生效）
+            if u.path == "/api/llm-config":
+                patch = {"tag_translator": {
+                    "provider": (body.get("provider") or "").strip(),
+                    "endpoint": (body.get("endpoint") or "").strip(),
+                    "model": (body.get("model") or "").strip(),
+                    "timeout": int(body.get("timeout") or 60),
+                }}
+                if (body.get("api_key") or "").strip():
+                    patch["tag_translator"]["api_key"] = body["api_key"].strip()
+                try:
+                    cfgmod.save_patch(patch)
+                except Exception as e:
+                    return self._json({"ok": False, "err": str(e)})
+                # 热更新：不用重启服务，下一个请求就用新配置
+                globals()["_TAGTR_CFG"] = cfgmod.load().get("tag_translator") or {}
+                return self._json({"ok": True,
+                                   "available": bool(tagtr and tagtr.available(_TAGTR_CFG))})
+
+            # 真测一次：拿一句话去问配好的模型，验证 key/endpoint 是通的
+            if u.path == "/api/llm-test":
+                if not tagtr:
+                    return self._json({"ok": False, "err": "tagtr 模块缺失"})
+                cfg = dict(body.get("cfg") or _TAGTR_CFG)
+                if (body.get("api_key") or "").strip():
+                    cfg["api_key"] = body["api_key"].strip()
+                r = tagtr.ask("初音未来", cfg, system=tagtr.NAME_PROMPT, temperature=0.1)
+                if not r.get("ok"):
+                    return self._json({"ok": False, "err": r.get("err")})
+                sample = (r.get("raw") or "").strip().split("\n")[0][:40]
+                return self._json({"ok": True, "provider": r.get("provider"), "sample": sample,
+                                   "note": "连接正常（试译「初音未来」→ %s）" % sample})
             if u.path == "/api/prompts":
                 pid = prompt_upsert(body)
                 return self._json({"ok": True, "id": pid})

@@ -68,6 +68,78 @@
   .gallery figure{margin:0}
   .gallery figcaption{color:var(--dim);font-size:11px;padding-top:3px;word-break:break-all}
   #log{color:#9fb0c6;font-size:12px;white-space:pre-wrap;margin-top:8px;max-height:72px;overflow-y:auto;flex:0 0 auto}
+  /* 人话转 tag：一行输入 + 按钮，下面一行状态 */
+  #trbox{margin-bottom:6px}
+  #trbox .trrow{display:flex;gap:6px}
+  #trbox .trrow input{flex:1 1 auto;min-width:0}
+  #trbox .trrow button{flex:0 0 auto}
+  #trout{font-size:11px;color:#6f8098;padding-top:3px}
+  /* 角色参考（AnimaDex）：可折叠，跟预设/配置档同款外观 */
+  #charrefbox{flex:0 0 auto;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:6px;
+              background:linear-gradient(180deg,rgba(122,162,247,.05),rgba(255,255,255,.01))}
+  #chead{display:flex;gap:6px;align-items:center;padding:7px 10px;cursor:pointer;font-size:12px}
+  #chead .ccar{transition:transform .15s;color:var(--dim)}
+  #charrefbox.open #chead .ccar{transform:rotate(90deg)}
+  #cbody{padding:0 10px 9px;border-top:1px solid var(--line)}
+  #cbody .crow{display:flex;gap:6px;align-items:center;padding:7px 0 6px;flex-wrap:wrap}
+  #cbody .crow input[type=text],#cbody .crow input:not([type]){flex:1 1 140px;min-width:0}
+  #clist{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto}
+  #clist .citem{display:flex;gap:8px;padding:5px;border:1px solid #26313f;border-radius:8px;background:#151c25}
+  #clist .citem img{width:52px;height:52px;object-fit:cover;border-radius:6px;flex:0 0 auto;background:#0d131b}
+  #clist .cmeta{flex:1 1 auto;min-width:0}
+  #clist .cname{font-size:12px;color:#cdd9e8;margin-bottom:2px}
+  #clist .ctags{font-size:11px;color:#7f93ab;word-break:break-all;margin-bottom:3px}
+  #clist .cact{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+  #clist .cact button{font-size:11px;padding:2px 7px}
+  #clist .clora{font-size:11px;color:#8ab4f8;text-decoration:none;padding:2px 5px;border:1px solid #2b3b52;border-radius:5px}
+  #clist .clora:hover{background:#1b2738}
+  #cnote{padding-top:4px}
+  /* AI 增强（可选 LLM）：跟角色参考同款折叠外观 */
+  #llmbox{flex:0 0 auto;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:6px;
+          background:linear-gradient(180deg,rgba(122,162,247,.05),rgba(255,255,255,.01))}
+  #lhead{display:flex;gap:6px;align-items:center;padding:7px 10px;cursor:pointer;font-size:12px}
+  #lhead .lcar{transition:transform .15s;color:var(--dim)}
+  #llmbox.open #lhead .lcar{transform:rotate(90deg)}
+  .badge{font-size:10px;padding:1px 6px;border-radius:20px;background:#252f3d;color:#7f93ab;border:1px solid #2c3847}
+  .badge.on{background:#12351f;color:#61d68a;border-color:#1d5c34}
+  #lbody{padding:2px 10px 10px;border-top:1px solid var(--line)}
+  #lbody .lwhy{font-size:11px;color:#8fa2b8;line-height:1.6;margin:8px 0}
+  #lbody label{font-size:11px;color:#7f93ab;margin-top:7px}
+  #lbody select,#lbody input{width:100%}
+  #lbody .lhow{font-size:11px;color:#8fa2b8;line-height:1.6;margin-top:5px;padding:6px 8px;
+               background:#141b24;border:1px solid #222c38;border-radius:7px}
+  #lbody .lhow:empty{display:none}
+  #lbody .lhow code{background:#1c2531;padding:1px 4px;border-radius:4px;color:#9fb6d1}
+  #lbody .lrow{display:flex;gap:6px}
+  #lbody .lrow input{flex:1 1 auto;min-width:0}
+  #lbody .lrow button{flex:0 0 auto}
+  #ladv{margin-top:7px;font-size:11px}
+  #ladv summary{cursor:pointer;color:#7f93ab}
+  #lbody .lbtns{display:flex;gap:6px;align-items:center;margin-top:9px;flex-wrap:wrap}
+  #lbody .lnote{font-size:10px;color:#6b7c92;margin:8px 0 0;line-height:1.6}
+  #lbody .lnote code{background:#1c2531;padding:1px 4px;border-radius:4px}
+  /* 多 LoRA 槽：每行 = select（占满）+ 强度小输入 */
+  #loraslots{display:flex;flex-direction:column;gap:4px}
+  #loraslots .lslot{display:flex;gap:6px;align-items:center}
+  #loraslots .lslot select{flex:1 1 auto;min-width:0}
+  #loraslots .lslot input{flex:0 0 62px;width:62px}
+  #loraAdd{font-size:11px;padding:3px 8px;align-self:flex-start}
+  /* 进度区：每个任务一行，状态色 + 细进度条 */
+  #jobs{margin-top:8px;font-size:12px;display:flex;flex-direction:column;gap:4px;max-height:170px;overflow-y:auto;flex:0 0 auto}
+  #jobs .jrow{display:flex;align-items:center;gap:8px;padding:3px 7px;border:1px solid #26313f;border-radius:6px;background:#151c25}
+  #jobs .jrow.jok{border-color:#2b4a35}
+  #jobs .jrow.jfail{border-color:#5a2b2b;background:#1e1416}
+  #jobs .jname{flex:0 0 auto;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cdd9e8}
+  #jobs .jst{flex:0 0 auto;color:#7f93ab;min-width:38px}
+  #jobs .jrow.jok .jst{color:#5fbf8a}
+  #jobs .jrow.jfail .jst{color:#e07676}
+  #jobs .jbar{flex:1 1 auto;height:6px;border-radius:3px;background:#222c38;overflow:hidden;min-width:60px}
+  #jobs .jbar i{display:block;height:100%;background:linear-gradient(90deg,#3d7ad6,#5aa9e6);transition:width .25s linear}
+  #jobs .jrow.jok .jbar i{background:#3f9e6b}
+  #jobs .jrow.jfail .jbar i{background:#a34545}
+  #jobs .jnum{flex:0 0 auto;color:#8fa5bd;min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+  #jobs .jerr{flex:0 1 auto;color:#e07676;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #jobs .jnote{color:#6f8098;font-size:11px;padding-top:2px}
   .lib{flex:1 1 auto;min-height:0;overflow-y:auto;margin-top:6px}
   .item{border:1px solid var(--line);border-radius:10px;padding:7px 8px;margin-bottom:6px;
         background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008));
@@ -128,11 +200,19 @@
   .pgrid b .z{color:var(--dim);font-size:11px;margin-left:5px}
   .pgrid b.on .z{color:#08131c;opacity:.7}
   .pfoot{display:flex;gap:8px;align-items:flex-start;flex:0 0 auto;border-top:1px solid var(--line);padding-top:6px}
-  #psel{flex:1;display:flex;flex-wrap:wrap;gap:4px;min-height:26px;max-height:60px;overflow-y:auto}
+  #psel{flex:1;display:flex;flex-direction:column;gap:4px;min-height:26px;max-height:110px;overflow-y:auto}
   #psel span{display:inline-flex;align-items:center;gap:2px;padding:2px 4px 2px 8px;border-radius:6px;
              background:#243040;font-size:11px;font-family:ui-monospace,Consolas,monospace}
   #psel span i{cursor:pointer;color:var(--dim);font-style:normal;padding:0 3px;border-radius:4px}
   #psel span i:hover{color:var(--bad);background:#00000040}
+  /* 已选词分组：每个一级分类一小块，块内 chip 换行 */
+  #psel .pgrp{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  #psel .pgrp em{font-style:normal;font-size:11px;color:#6f8098;flex:0 0 auto;
+                 padding:1px 6px;border-radius:4px;background:#1b232e;border:1px solid #26313f}
+  /* 拖拽反馈：被拖的淡出，落点高亮 */
+  #psel span[draggable]{cursor:grab}
+  #psel span.dragging{opacity:.35}
+  #psel span.dragover{outline:2px solid #5aa9e6;outline-offset:1px;border-radius:6px}
   /* ── 配置档：整套参数快照，点一下全填上 ── */
   #profilebox{flex:0 0 auto;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:6px;
               background:linear-gradient(180deg,rgba(126,231,135,.05),rgba(255,255,255,.01))}
@@ -216,15 +296,14 @@
       <label style="display:inline;margin-left:6px"><input type="checkbox" id="loraAll" class="sel"> 显示全部</label>
     </label>
     <input id="loraq" placeholder="搜 LoRA（打几个字母过滤）" style="margin-bottom:4px">
-    <select id="lora"></select>
-
-    <label>LoRA 强度</label>
-    <input id="strength" type="number" step="0.05" value="0.8">
-
-    <label>第二 LoRA（可选 · 叠在上面）</label>
-    <select id="lora2"></select>
-    <label>第二 LoRA 强度</label>
-    <input id="strength2" type="number" step="0.05" value="0.8">
+    <!-- 多 LoRA 槽：最多 4 个，后两个默认收起（点「再加一个」展开），不占地方 -->
+    <div id="loraslots">
+      <div class="lslot"><select id="lora"></select><input id="strength" type="number" step="0.05" value="0.8" title="强度"></div>
+      <div class="lslot"><select id="lora2"></select><input id="strength2" type="number" step="0.05" value="0.8" title="强度"></div>
+      <div class="lslot" hidden><select id="lora3"></select><input id="strength3" type="number" step="0.05" value="0.8" title="强度"></div>
+      <div class="lslot" hidden><select id="lora4"></select><input id="strength4" type="number" step="0.05" value="0.8" title="强度"></div>
+    </div>
+    <button class="ghost" id="loraAdd" style="margin-top:4px">+ 再加一个 LoRA（最多 4）</button>
 
     <div class="row">
       <div><label>宽</label><input id="w" type="number" value="832"></div>
@@ -285,7 +364,65 @@
       </div>
     </div>
 
+    <!-- 角色参考：数据来自 AnimaDex（MIT 开源索引），搜角色 → 拿 tags + LoRA 链接 -->
+    <div id="charrefbox">
+      <div id="chead"><span class="ccar">▸</span><b>角色参考</b>
+        <span class="hint" id="hint2" style="display:inline;margin-left:auto">搜角色名 → 一键拿 tags</span></div>
+      <div id="cbody" hidden>
+        <div class="crow">
+          <input id="cquery" placeholder="角色名（英文更好搜，如 miku / rem / asuka）">
+          <label class="inline"><input type="checkbox" id="conlylora" class="sel"> 只要带 LoRA</label>
+        </div>
+        <div id="clist"></div>
+        <div id="cnote" class="hint"></div>
+      </div>
+    </div>
+
+    <!-- AI 增强（可选）：中文描述→tag、中文角色名→英文名。不配也能用，只是少两个功能 -->
+    <div id="llmbox">
+      <div id="lhead"><span class="lcar">▸</span><b>AI 增强</b>
+        <span class="badge" id="lbadge">未开启</span>
+        <span class="hint" style="display:inline;margin-left:auto">可选 · 不配也能跑</span></div>
+      <div id="lbody" hidden>
+        <p class="lwhy">配一个 AI，就多两个功能：<b>①</b> 用中文描述 → 自动出英文 tag；
+          <b>②</b> 搜中文角色名（如"初音未来"）→ 自动翻成英文再搜。</p>
+
+        <label>第一步 · 选一家（都可以，看你手上有哪个）</label>
+        <select id="lprovider"></select>
+
+        <div id="lhow" class="lhow"></div>
+
+        <label>第二步 · 把 key 粘进来</label>
+        <div class="lrow">
+          <input id="lkey" type="password" placeholder="sk-...（粘贴后点右边保存）">
+          <button class="ghost" id="lkeyeye" title="显示/隐藏">👁</button>
+        </div>
+
+        <details id="ladv">
+          <summary>高级（模型名 / 接口地址，一般不用改）</summary>
+          <label>模型</label><input id="lmodel" placeholder="deepseek-chat">
+          <label>接口地址</label><input id="lendpoint" placeholder="https://api.deepseek.com/v1">
+        </details>
+
+        <div class="lbtns">
+          <button id="ltest" class="ghost">测试连接</button>
+          <button id="lsave">保存</button>
+          <span id="lmsg" class="hint"></span>
+        </div>
+        <p class="lnote">key 存在你本机的 <code>config.json</code> 里，不会上传到任何地方。
+          这是你个人的 key，用多少算多少。</p>
+      </div>
+    </div>
+
     <label>提示词（一行一个 prompt）· 打字出候选，↑↓ 选 · Enter 插入 · Esc 关</label>
+    <!-- 人话转 tag：只有 config 里配了 tag_translator 才显示（默认关闭） -->
+    <div id="trbox" hidden>
+      <div class="trrow">
+        <input id="trtext" placeholder="用人话描述，比如：穿白裙子的蓝眼睛长发少女站在海边">
+        <button id="trgo" title="翻成 Danbooru tag（过词表校验）">翻成 tag</button>
+      </div>
+      <div id="trout" class="hint"></div>
+    </div>
     <textarea id="prompts" rows="5" placeholder="1girl, solo, ...&#10;第二张的提示词&#10;第三张..."></textarea>
     <div id="tagbox" hidden></div>
     <div class="btnrow">
@@ -297,6 +434,9 @@
 
     <label>负面（默认带红线，别删 gore/blood）</label>
     <textarea id="negative" rows="2"></textarea>
+
+    <!-- 进度：任务状态机实时反映（SSE 推送，见 /api/progress） -->
+    <div id="jobs" hidden></div>
     <div id="log"></div>
 
     <label style="margin-top:12px">图墙（最新在上 · 点图看大图与元数据）</label>
@@ -350,22 +490,20 @@ function fillLoras(){
   const line=$("#line").value;
   const all=$("#loraAll").checked;
   const q=$("#loraq").value.trim().toLowerCase();
-  const keep=$("#lora").value;
   const pool=OPTS.loras
     .filter(x=>all||(x.line===line && !x.extra))
     .filter(x=>!q||x.name.toLowerCase().includes(q)||(x.alias||"").toLowerCase().includes(q))
     .sort((a,b)=>(b.star-a.star)||(b.used-a.used)||((a.line===line?0:1)-(b.line===line?0:1))||a.name.localeCompare(b.name));
-  for(const sel of ["#lora","#lora2"]){
+  for(const sel of LORA_SLOTS){
     const lo=$(sel), keepv=lo.value;
     lo.innerHTML="";
-    lo.add(new Option(sel==="#lora2"?"（不叠第二 LoRA）":"（不挂 LoRA）",""));
+    lo.add(new Option(sel==="#lora"?"（不挂 LoRA）":"（空）",""));
     pool.forEach(x=>lo.add(new Option((x.star?"★ ":"")+(x.used?`[${x.used}] `:"")+(x.alias?x.alias+" · ":"")+x.name+(all?"  ["+x.line+"]":""), x.name)));
     if([...lo.options].some(o=>o.value===keepv)) lo.value=keepv;
   }
   const total=OPTS.loras.filter(x=>all||(x.line===line&&!x.extra)).length;
   $("#loracount").textContent= OPTS.loras.length===0 ? "⚠ 拉不到（ComfyUI 没连上）"
     : (all? `${pool.length} / ${OPTS.loras.length} 个` : `${pool.length} / ${total} 个（本线）`) + (OPTS.stale?" · 缓存":"");
-  if(OPTS.loras.length===0) lo.add(new Option("—— ComfyUI 没连上，点上方「重启 ComfyUI」——",""));
 }
 function applyLine(){
   const name=$("#line").value;
@@ -539,7 +677,181 @@ $("#pedit").addEventListener("keydown",e=>{
   }
 });
 
-/* ---------- 跑 ---------- */
+/* ---------- AI 增强（可选 LLM 设置）----------
+   新用户不知道 key 去哪拿 —— 这里选完厂家直接把申请地址摆出来，
+   填完能"测试连接"，通了才保存。不配就整个功能保持关闭。 */
+let LLM_PRESETS={};
+function bindLLM(){
+  const box=$("#llmbox"), head=$("#lhead"), body=$("#lbody");
+  head.onclick=()=>{ const o=box.classList.toggle("open"); body.hidden=!o; };
+
+  function paintHow(key){
+    const p=LLM_PRESETS[key]||{};
+    const how=$("#lhow");
+    if(key==="ollama"){
+      how.innerHTML=`本机装 <a href="${esc(p.signup||"")}" target="_blank" rel="noopener">Ollama</a>，
+        然后 <code>ollama pull ${esc(p.model||"qwen2.5:7b")}</code> —— 免费、不用 key、不联网。`;
+    }else if(key==="custom"){
+      how.innerHTML="填你自己的接口地址（任何 OpenAI 兼容的 /v1）。";
+    }else if(p.signup){
+      how.innerHTML=`去 <a href="${esc(p.signup)}" target="_blank" rel="noopener">${esc(p.signup)}</a>
+        注册 → 建一个 API Key → 复制粘贴到下面。<span class="hint">（充值后才有额度，按量计费）</span>`;
+    }else how.innerHTML="";
+  }
+
+  $("#lprovider").onchange=()=>{
+    const k=$("#lprovider").value, p=LLM_PRESETS[k]||{};
+    $("#lmodel").value=p.model||"";
+    $("#lendpoint").value=p.endpoint||"";
+    $("#lkey").placeholder = k==="ollama" ? "（本机 Ollama 不需要 key）" : "sk-...";
+    paintHow(k);
+  };
+
+  $("#lkeyeye").onclick=()=>{
+    const i=$("#lkey"); i.type = i.type==="password" ? "text" : "password";
+  };
+
+  async function refresh(){
+    const d=await jget("/api/llm-config");
+    LLM_PRESETS=d.presets||{};
+    const sel=$("#lprovider");
+    sel.innerHTML=Object.entries(LLM_PRESETS)
+      .map(([k,v])=>`<option value="${k}">${esc(v.label||k)}</option>`).join("");
+    const cur = d.provider || "deepseek";
+    sel.value = LLM_PRESETS[cur] ? cur : "deepseek";
+    $("#lmodel").value=d.model||""; $("#lendpoint").value=d.endpoint||"";
+    $("#lkey").placeholder = d.has_key ? "已保存（留空则不修改）" : "sk-...";
+    paintHow(sel.value);
+    const ok=!!d.available;
+    $("#lbadge").textContent = ok ? "已开启" : "未开启";
+    $("#lbadge").className = "badge" + (ok?" on":"");
+    // 开了就在提示词区显示翻译框
+    $("#trbox").hidden = !ok;
+    return d;
+  }
+
+  $("#lsave").onclick=async()=>{
+    const m=$("#lmsg"); m.textContent="保存中…";
+    try{
+      const d=await jpost("/api/llm-config",{
+        provider:$("#lprovider").value, model:$("#lmodel").value.trim(),
+        endpoint:$("#lendpoint").value.trim(), api_key:$("#lkey").value.trim()});
+      if(!d.ok){ m.textContent="失败："+(d.err||""); return; }
+      m.textContent = d.available ? "已保存 ✓ 功能已开启" : "已保存（provider 没填对？）";
+      $("#lkey").value="";
+      await refresh();
+    }catch(e){ m.textContent="失败："+e.message; }
+  };
+
+  $("#ltest").onclick=async()=>{
+    const m=$("#lmsg"); m.textContent="测试中…（第一次可能慢）";
+    try{
+      const d=await jpost("/api/llm-test",{
+        cfg:{provider:$("#lprovider").value, model:$("#lmodel").value.trim(),
+             endpoint:$("#lendpoint").value.trim()},
+        api_key:$("#lkey").value.trim()});
+      m.textContent = d.ok ? ("✓ "+(d.note||"连接正常")) : ("✗ "+(d.err||"失败"));
+    }catch(e){ m.textContent="✗ "+e.message; }
+  };
+
+  return refresh();
+}
+
+/* ---------- 角色参考（AnimaDex 代理）----------
+   搜角色 → 出缩略图 + Danbooru tags + CivitAI LoRA 链接。
+   点「加 tags」= 把该角色的 tag 串拼进光标那行（跟预设/标签面板同一套逻辑）。 */
+let CHARQ_T=null;
+function bindCharRef(){
+  const box=$("#charrefbox"), head=$("#chead"), body=$("#cbody");
+  head.onclick=()=>{ const o=box.classList.toggle("open"); body.hidden=!o; };
+  $("#cquery").oninput=()=>{ clearTimeout(CHARQ_T); CHARQ_T=setTimeout(doCharSearch, 350); };
+  $("#conlylora").onchange=doCharSearch;
+  $("#clist").onclick=async e=>{
+    const b=e.target.closest("[data-act]"); if(!b) return;
+    const i=+b.dataset.i; const item=CHAR_RES[i]; if(!item) return;
+    if(b.dataset.act==="tags"){
+      applyToCursorLine(item.tags.join(", "));
+      log(`已加入「${item.name}」的 ${item.tags.length} 个 tag`);
+    }else if(b.dataset.act==="trigger" && item.trigger){
+      applyToCursorLine(item.trigger);
+      log(`已加入触发词：${item.trigger}`);
+    }
+  };
+}
+let CHAR_RES=[];
+async function doCharSearch(){
+  const q=$("#cquery").value.trim();
+  const list=$("#clist"), note=$("#cnote");
+  if(!q){ list.innerHTML=""; note.textContent=""; return; }
+  note.textContent="搜索中…";
+  try{
+    const d=await jget("/api/charsearch?n=12&q="+encodeURIComponent(q)+($("#conlylora").checked?"&lora=1":""));
+    if(!d.ok){ note.textContent="失败："+(d.err||""); list.innerHTML=""; return; }
+    CHAR_RES=d.results||[];
+    let head = CHAR_RES.length ? `共 ${d.total} 个结果` : "没搜到——试试英文名";
+    if(d.translated_from){
+      head = `中文名「${d.translated_from.input}」→ 译成「${d.translated_from.english}」后搜到 ${d.total} 个`;
+    }else if(d.total===0 && d.hint){
+      head = "没搜到。" + d.hint;
+    }
+    note.textContent = head;
+    list.innerHTML = CHAR_RES.map((x,i)=>{
+      const lor = (x.loras||[]).slice(0,2).map(l=>
+        `<a class="clora" href="${esc(l.url||"#")}" target="_blank" rel="noopener" title="${esc(l.name||"")}">LoRA ↗</a>`).join("");
+      return `<div class="citem">
+        ${x.thumb?`<img src="${esc(x.thumb)}" loading="lazy" alt="">`:""}
+        <div class="cmeta">
+          <div class="cname">${esc(x.name||x.slug)} <span class="hint" style="display:inline">${esc(x.copyright||"")}</span></div>
+          <div class="ctags">${esc((x.tags||[]).join(", ")).slice(0,110)}</div>
+          <div class="cact">
+            <button class="ghost" data-act="tags" data-i="${i}">加 tags</button>
+            ${x.trigger?`<button class="ghost" data-act="trigger" data-i="${i}" title="${esc(x.trigger)}">加触发词</button>`:""}
+            ${lor}
+            ${x.url?`<a class="clora" href="${esc(x.url)}" target="_blank" rel="noopener">Danbooru ↗</a>`:""}
+          </div>
+        </div></div>`;
+    }).join("");
+  }catch(e){ note.textContent="失败："+e.message; }
+}
+
+function bindTranslate(){
+  $("#trgo").onclick = async ()=>{
+    const t=$("#trtext").value.trim();
+    if(!t) return;
+    const btn=$("#trgo"); btn.disabled=true; $("#trout").textContent="翻译中…";
+    try{
+      const d=await jpost("/api/translate-tags",{text:t});
+      if(!d.ok){ $("#trout").textContent="失败："+(d.err||""); return; }
+      if(!d.tags || !d.tags.length){ $("#trout").textContent="没翻出有效 tag（候选都被词表筛掉了）"; return; }
+      // 结果追加到提示词框当前行（跟标签面板同一套逻辑）
+      applyToCursorLine(d.tags.join(", "));
+      let msg=`已翻出 ${d.tags.length} 个 tag`;
+      if(d.fixed && d.fixed.length) msg += ` · 纠错 ${d.fixed.map(f=>f.from+"→"+f.to).join(" ")}`;
+      if(d.dropped && d.dropped.length) msg += ` · 丢弃 ${d.dropped.length} 个（词表里没有）`;
+      $("#trout").textContent=msg;
+    }catch(e){ $("#trout").textContent="失败："+e.message; }
+    finally{ btn.disabled=false; }
+  };
+  $("#trtext").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#trgo").click(); } });
+  // 探测：配了 provider 才显示
+  jget("/api/translate-tags").then(d=>{
+    if(d && d.available){ $("#trbox").hidden=false; $("#trout").textContent=`已接 ${d.provider} · 词表 ${d.vocab} 词`; }
+  }).catch(()=>{});
+}
+
+/* 多 LoRA：最多 4 槽，收集成 [{name, strength}, ...] 给后端（后端兼容老的 lora/lora2） */
+const LORA_SLOTS=["#lora","#lora2","#lora3","#lora4"];
+function pickLoras(){
+  const out=[];
+  LORA_SLOTS.forEach((sel,i)=>{
+    const nm=$(sel) ? $(sel).value : "";
+    if(!nm) return;
+    const stEl=$("#strength"+(i===0?"":(i+1)));
+    const st=stEl ? parseFloat(stEl.value) : 0.8;
+    out.push({name:nm, strength:isNaN(st)?0.8:st});
+  });
+  return out;
+}
 async function run(){
   const lines=$("#prompts").value.split("\n").map(s=>s.trim()).filter(Boolean);
   if(!lines.length) return log("提示词是空的。");
@@ -547,20 +859,82 @@ async function run(){
   const jobs=lines.map((p,i)=>({prompt:p,suffix:String.fromCharCode(97+i),seed:seedRaw||"random"}));
   $("#run").disabled=true;
   try{
+    const loras=pickLoras();
     const r=await jpost("/api/run",{
-      line:$("#line").value, lora:$("#lora").value||null,
-      lora_strength:parseFloat($("#strength").value)||0.8,
-      lora2:$("#lora2").value||null,
-      lora2_strength:parseFloat($("#strength2").value)||0.8,
+      line:$("#line").value,
+      loras:loras,
+      // 兼容字段：第一个当主 LoRA，老后端/老脚本也认
+      lora:loras[0]?loras[0].name:null,
+      lora_strength:loras[0]?loras[0].strength:0.8,
+      lora2:loras[1]?loras[1].name:null,
+      lora2_strength:loras[1]?loras[1].strength:0.8,
       per_prompt:+$("#perprompt").value||1,
       width:+$("#w").value, height:+$("#h").value,
       steps:+$("#steps").value||null, cfg:+$("#cfg").value||null,
       prefix:$("#prefix").value, negative:$("#negative").value,
       free:$("#free").checked, jobs});
     log(r.ok?`已提交 ${r.queued.length} 张：`+r.queued.map(x=>x.suffix+"#"+x.seed).join(" "):"失败："+r.error);
-    if(r.ok) touchUsed(lines);
+    if(r.ok){ touchUsed(lines); progWatch(r.queued.map(x=>x.prompt_id).filter(Boolean)); }
   }catch(e){ log("失败："+e.message); }
   $("#run").disabled=false; tick();
+}
+
+/* ---------- 进度（SSE） ----------
+   后端把 ComfyUI 的 WebSocket 事件翻成任务状态机，这里用 EventSource 接。
+   一次连接常驻，只在任务集合变化时服务端才推（省流量）。 */
+let PROG=null, PROG_ON=false;
+function progWatch(ids){
+  if(!ids || !ids.length) return;
+  if(!PROG_ON){ PROG_ON=true; progConnect(); }
+}
+function progConnect(){
+  try{ if(PROG) PROG.close(); }catch(e){}
+  PROG = new EventSource("/api/progress");
+  PROG.onmessage = (ev)=>{
+    let d; try{ d=JSON.parse(ev.data); }catch(e){ return; }
+    renderJobs(d.jobs||{}, d.connected);
+    // 全部跑完：断开连接，别常挂着
+    if(!d.active && Object.keys(d.jobs||{}).length){ PROG.close(); PROG_ON=false; tick(); }
+  };
+  PROG.onerror = ()=>{
+    // EventSource 自己会重连；真断了就标记一下，不要无限刷日志
+    const box=$("#jobs"); if(box && !box.hidden){ const t=box.querySelector(".jnote"); if(t) t.textContent="（进度连接断开，ComfyUI 可能被关了）"; }
+  };
+}
+function progStop(){
+  try{ if(PROG) PROG.close(); }catch(e){}
+  PROG=null; PROG_ON=false;
+  $("#jobs").hidden=true;
+}
+const JOB_ZH={queued:"排队",running:"生成中",success:"完成",failed:"失败",cancelled:"已取消"};
+function h(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function renderJobs(jobs, connected){
+  const box=$("#jobs"); const ids=Object.keys(jobs);
+  if(!ids.length){ return; }
+  box.hidden=false;
+  // 进行中的排前面，其次最新的
+  ids.sort((a,b)=>{
+    const A=jobs[a], B=jobs[b];
+    const rank=s=>(s==="running"?0:s==="queued"?1:2);
+    if(rank(A.status)!==rank(B.status)) return rank(A.status)-rank(B.status);
+    return (B.updated||0)-(A.updated||0);
+  });
+  const rows = ids.slice(0,12).map(id=>{
+    const j=jobs[id];
+    const pct=Math.max(0,Math.min(1,j.progress||0));
+    const num=j.total?`${j.step}/${j.total}`:"";
+    const name=(j.suffix||id.slice(0,8)).replace(/^ui_/,"");
+    const cls=j.status==="failed"?" jfail":(j.status==="success"?" jok":"");
+    const err=j.error?`<span class="jerr" title="${h(j.error)}">${h(String(j.error).slice(0,40))}</span>`:"";
+    return `<div class="jrow${cls}" title="${h(id)}">
+      <span class="jname">${h(name)}</span>
+      <span class="jst">${h(JOB_ZH[j.status]||j.status)}</span>
+      <span class="jbar"><i style="width:${(pct*100).toFixed(1)}%"></i></span>
+      <span class="jnum">${h(num)}</span>${err}
+    </div>`;
+  }).join("");
+  const note = connected ? "" : "（进度连接断开——ComfyUI 可能被关了）";
+  box.innerHTML = rows + `<div class="jnote">${h(note)}</div>`;
 }
 async function touchUsed(lines){
   const ids=LIB.filter(it=>lines.includes(it.text)).map(it=>it.id);
@@ -642,9 +1016,20 @@ function applyToCursorLine(text){
 async function usePreset(pid){
   const c=PRESETS.find(x=>x.id===pid); if(!c) return;
   applyToCursorLine(c.tags);
+  // 预设带了固定负面词就填进负面框（不覆盖用户自己写的，只在空的时候填）
+  if(c.neg){
+    const negBox=$("#negative");
+    if(!negBox.value.trim()){
+      negBox.value=c.neg;
+      log("已拼入预设："+c.name+"（负面词也填上了）");
+    }else{
+      log("已拼入预设："+c.name+"（负面框里已有内容，没覆盖）");
+    }
+  }else{
+    log("已拼入预设："+c.name);
+  }
   try{ await jpost("/api/presets/touch",{id:pid}); }catch(e){}
   c.used=(c.used||0)+1; renderPresets();
-  log("已拼入预设："+c.name);
 }
 /* 存预设：有框选存框选，没框选存光标那一行（像浏览器搜索框）*/
 function pickFromBox(){
@@ -688,7 +1073,9 @@ function toggleEdit(pid){
        <input type="text" id="pname" value="${esc(c.name)}" placeholder="预设名">
        <button class="ghost" data-act="drop" title="删掉这个预设">删除</button></div>
      <div class="pchips" id="pchips">${splitTags(c.tags).map(tagChip).join("")}
-       <span class="ptagadd"><input class="pin" placeholder="+ 加一条"></span></div>
+        <span class="ptagadd"><input class="pin" placeholder="+ 加一条"></span></div>
+     <div class="prow"><span class="hint" style="display:inline;flex:0 0 auto">负面</span>
+        <input type="text" id="pneg" value="${esc(c.neg||"")}" placeholder="（可选）固定负面词，点预设时会填进负面框"></div>
      <div class="prow"><span class="hint" style="display:inline">逗号分隔 · 每条一个 tag · 改完点保存</span>
        <span style="flex:1 1 auto"></span>
        <button class="ghost" data-act="cancel">取消</button>
@@ -701,7 +1088,8 @@ async function saveEdit(){
   if(!name) return log("名字不能空。");
   const tags=[...$("#pchips").querySelectorAll("input.pt")].map(i=>i.value.trim()).filter(Boolean).join(", ");
   if(!tags) return log("至少留一条 tag。");
-  const r=await jpost("/api/presets",{id:c.id,name,tags});
+  const neg=($("#pneg") ? $("#pneg").value : "").trim();
+  const r=await jpost("/api/presets",{id:c.id,name,tags,neg});
   if(r.ok){ log("已更新预设：「"+name+"」"); PEDIT=null; await loadPresets(); toggleEdit(null); }
   else log("保存失败："+(r.error||""));
 }
@@ -797,6 +1185,14 @@ $("#zh").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault()
 $("#line").onchange=applyLine;
 $("#loraAll").onchange=fillLoras;
 $("#loraq").oninput=fillLoras;
+/* 多 LoRA 槽：逐个展开，按钮到顶就禁用 */
+$("#loraAdd").onclick=()=>{
+  const hidden=[...document.querySelectorAll("#loraslots .lslot[hidden]")];
+  if(!hidden.length) return;
+  hidden[0].hidden=false;
+  fillLoras();
+  $("#loraAdd").disabled = !document.querySelector("#loraslots .lslot[hidden]");
+};
 $("#power").onclick=async()=>{
   const alive=$("#comfy").textContent.includes("在线");
   const b=$("#power");
@@ -857,11 +1253,91 @@ function renderPGrid(){
     +(PQ.length?`<b class="more" data-clearsearch="1">× 退出搜索</b>`:"");
 }
 
+/* 已选词：按分类分组显示。
+   分类数据来自 /api/classify（后端 tagcats 规则），结果缓存——只有新出现的 tag 才去查。
+   分组顺序跟点选面板一致，查不到分类的进「其他」（比如 LoRA 触发词、手写词）。 */
+let PSEL_CATS={}, PSEL_ORDER=[];
+function psGroup(){
+  const g={};
+  PSEL.forEach(t=>{
+    const cats = PSEL_CATS[t] || ["…"];
+    cats.forEach(c=>{ (g[c]=g[c]||[]).push(t); });
+  });
+  // 按后端给的顺序排，未知分类丢最后
+  const names=Object.keys(g);
+  names.sort((a,b)=>{
+    const ia=PSEL_ORDER.indexOf(a), ib=PSEL_ORDER.indexOf(b);
+    return (ia<0?999:ia)-(ib<0?999:ib);
+  });
+  return {g, names};
+}
 function renderPSel(){
   const el=$("#psel");
-  if(!PSEL.length){ el.innerHTML=`<span class="ph">已选 0 个 —— 点上面的标签加进来，顺序就是你点选的顺序</span>`; return; }
-  el.innerHTML=`<span class="ph">已选 ${PSEL.length}：</span>`+PSEL.map((t,i)=>
-    `<span>${esc(t)}<i data-del="${i}" title="移除">×</i></span>`).join("");
+  if(!PSEL.length){ el.innerHTML=`<span class="ph">已选 0 个 —— 点上面的标签加进来，顺序就是你点选的顺序（可拖动重排）</span>`; return; }
+  const {g, names}=psGroup();
+  const head=`<span class="ph">已选 ${PSEL.length}：</span>`;
+  const body=names.map(n=>{
+    const items=g[n].map(t=>`<span draggable="true" data-tag="${esc(t)}">${esc(t)}<i data-del="${t}" title="移除">×</i></span>`).join("");
+    return `<div class="pgrp"><em>${esc(n)}</em>${items}</div>`;
+  }).join("");
+  el.innerHTML=head+body;
+  syncPSel();          // 缺分类的异步补齐
+}
+/* 拖拽排序：源 tag 拖到目标 tag 上 = 插到它前面（顺序 = 提示词顺序） */
+let DRAG_TAG=null;
+function bindPSelDrag(){
+  const el=$("#psel");
+  el.addEventListener("dragstart", e=>{
+    const sp=e.target.closest("span[data-tag]"); if(!sp) return;
+    if(e.target.closest("i[data-del]")){ e.preventDefault(); return; }   // 点 × 不算拖
+    DRAG_TAG=sp.dataset.tag;
+    sp.classList.add("dragging");
+    try{ e.dataTransfer.setData("text/plain", DRAG_TAG); e.dataTransfer.effectAllowed="move"; }catch(_){}
+  });
+  el.addEventListener("dragend", e=>{
+    DRAG_TAG=null;
+    el.querySelectorAll(".dragging,.dragover").forEach(x=>x.classList.remove("dragging","dragover"));
+  });
+  el.addEventListener("dragover", e=>{
+    const sp=e.target.closest("span[data-tag]"); if(!sp) return;
+    if(!DRAG_TAG || sp.dataset.tag===DRAG_TAG) return;
+    e.preventDefault();
+    el.querySelectorAll(".dragover").forEach(x=>x.classList.remove("dragover"));
+    sp.classList.add("dragover");
+  });
+  el.addEventListener("drop", e=>{
+    const sp=e.target.closest("span[data-tag]"); if(!sp) return;
+    e.preventDefault();
+    const to=sp.dataset.tag, from=DRAG_TAG;
+    sp.classList.remove("dragover");
+    if(!from || from===to) return;
+    const fi=PSEL.indexOf(from), ti=PSEL.indexOf(to);
+    if(fi<0 || ti<0) return;
+    PSEL.splice(fi,1);
+    PSEL.splice(PSEL.indexOf(to) + (fi<ti?1:0), 0, from);   // 拖到目标之前/之后
+    renderPSel();
+  });
+}
+async function syncPSel(){
+  const miss=PSEL.filter(t=>!(t in PSEL_CATS));
+  if(!miss.length) return;
+  try{
+    const d=await jget("/api/classify?tags="+encodeURIComponent(miss.join(",")));
+    if(d.order && d.order.length) PSEL_ORDER=d.order;
+    const detail=d.detail||{}, groups=d.groups||{};
+    Object.keys(detail).forEach(t=>{           // 默认：无分类 → 其他
+      PSEL_CATS[t]=["其他"];
+    });
+    Object.keys(groups).forEach(cat=>{
+      (groups[cat]||[]).forEach(t=>{
+        const cur=PSEL_CATS[t]||[];
+        if(cur.length===1 && cur[0]==="其他") PSEL_CATS[t]=[];   // 先清掉占位
+        PSEL_CATS[t].push(cat);
+      });
+    });
+    Object.keys(detail).forEach(t=>{ if(!PSEL_CATS[t].length) PSEL_CATS[t]=["其他"]; });
+    renderPSel();
+  }catch(e){ /* 分类挂了不影响选词，静默 */ }
 }
 
 function pToggle(t){
@@ -894,7 +1370,10 @@ $("#pgrid").onclick=async e=>{
 };
 $("#psel").onclick=e=>{
   const i=e.target.closest("i[data-del]"); if(!i) return;
-  const t=PSEL.splice(+i.dataset.del,1)[0];
+  const t=i.dataset.del;
+  const k=PSEL.indexOf(t);
+  if(k>=0) PSEL.splice(k,1);
+  delete PSEL_CATS[t];
   const b=document.querySelector(`#pgrid b[data-tag="${CSS.escape(t)}"]`);
   if(b) b.classList.remove("on");
   renderPSel();
@@ -919,6 +1398,12 @@ $("#papply").onclick=()=>{
 /* 开工作台就先检测一次：ComfyUI 不在就唤醒（不常驻，省显存） */
 async function boot(){
   try{
+    bindPSelDrag();
+    bindTranslate();
+    bindCharRef();
+    const lc = await bindLLM();
+    // AI 增强开没开，决定「人话转 tag」框显不显示
+    $("#trbox").hidden = !(lc && lc.available);
     await loadPresets(); await loadPanel(); await loadOptions(); await loadLib(); await tick();
     const s=await jget("/api/state?n=1");
     if(!s.alive){

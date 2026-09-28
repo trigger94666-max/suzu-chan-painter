@@ -92,16 +92,19 @@ def post(path, data, timeout=120):
 
 
 def build_graph(spec, prefix, prompt, negative, seed, lora, strength, w, h, steps, cfg,
-                lora2=None, strength2=0.8):
-    """lora2/strength2 可选：在第一个 LoRA 之后再串一个 LoraLoader（双叠）。
-    2026-09-22 加，向后兼容——老调用不传这两个参数时行为完全不变。"""
+                lora2=None, strength2=0.8, loras=None):
+    """LoRA 链：按顺序串 LoraLoader。
+
+    优先用 loras=[(名字, 强度), ...]（任意个数，2026-09-27 加，配合跑图台的多 LoRA 槽）；
+    没传 loras 时退回 lora/lora2 两槽的老写法——老调用行为完全不变。
+    """
     line = spec
+    lora_chain = loras if loras is not None else [(lora, strength), (lora2, strength2)]
+    lora_chain = [(n, s) for (n, s) in lora_chain if n]
     if "ckpt" in line:
         g = {"1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": line["ckpt"]}}}
         model_src, clip_src, vae_src = ["1", 0], ["1", 1], ["1", 2]
-        for _i, (_ln, _st) in enumerate(((lora, strength), (lora2, strength2))):
-            if not _ln:
-                continue
+        for _i, (_ln, _st) in enumerate(lora_chain):
             _nid = str(11 + _i)
             g[_nid] = {"class_type": "LoraLoader", "inputs": {
                 "lora_name": _ln, "strength_model": _st, "strength_clip": _st,
@@ -118,9 +121,7 @@ def build_graph(spec, prefix, prompt, negative, seed, lora, strength, w, h, step
             "3": {"class_type": "VAELoader", "inputs": {"vae_name": line["vae"]}},
         }
         model_src, clip_src, vae_src = ["1", 0], ["2", 0], ["3", 0]
-        for _i, (_ln, _st) in enumerate(((lora, strength), (lora2, strength2))):
-            if not _ln:
-                continue
+        for _i, (_ln, _st) in enumerate(lora_chain):
             _nid = str(11 + _i)
             g[_nid] = {"class_type": "LoraLoader", "inputs": {
                 "lora_name": _ln, "strength_model": _st, "strength_clip": _st,

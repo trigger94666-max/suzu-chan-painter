@@ -9,7 +9,10 @@ options_cache.json
 profiles.json
 *.log
 *.bak-*
+*.bak
 config.json
+config.json.*
+!config.example.json
 presets.json
 characters.json
 .env

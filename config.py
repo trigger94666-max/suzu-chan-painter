@@ -21,6 +21,15 @@ DEFAULTS = {
     "download_dir": "",
     "tag_dir": "",
     "proxy": "",
+    "animadex_url": "https://animadex.net",
+    # 可选 LLM：人话转 tag、中文角色名翻译都走这里。provider 留空 = 功能关闭。
+    "tag_translator": {
+        "provider": "",
+        "endpoint": "",
+        "model": "",
+        "api_key": "",
+        "timeout": 60,
+    },
     "prompt_help": {
         "enabled": False,
         "env_file": "",
@@ -28,6 +37,21 @@ DEFAULTS = {
         "model": "deepseek-v4.1-flash",
         "key_env": "OPENCODE_GO_API_KEY",
     },
+}
+
+# 这几个 provider 只是给前端下拉框用的"预设"，用户也可以手填 endpoint
+PROVIDER_PRESETS = {
+    "deepseek": {"endpoint": "https://api.deepseek.com/v1", "model": "deepseek-chat",
+                 "signup": "https://platform.deepseek.com/api_keys",
+                 "label": "DeepSeek（便宜、国内直连、支付宝充值）"},
+    "openai":   {"endpoint": "https://api.openai.com/v1", "model": "gpt-4o-mini",
+                 "signup": "https://platform.openai.com/api-keys",
+                 "label": "OpenAI（质量好，需要海外支付）"},
+    "ollama":   {"endpoint": "http://127.0.0.1:11434", "model": "qwen2.5:7b",
+                 "signup": "https://ollama.com/download",
+                 "label": "Ollama（本机跑、免费、不联网）"},
+    "custom":   {"endpoint": "", "model": "", "signup": "",
+                 "label": "自定义（任何 OpenAI 兼容接口）"},
 }
 
 # 环境变量覆盖表：环境变量 > config.json（方便 Docker / 脚本临时改）
@@ -104,3 +128,31 @@ def load():
 
 
 CFG = load()
+
+
+def save_patch(patch):
+    """把一小段配置合并写回 config.json（网页上改设置用）。
+
+    只动传进来的那几个键，其余原样保留；写之前先备份一份 .bak。
+    返回合并后的完整用户配置。
+    """
+    cur = _read(_USER)
+    if not isinstance(cur, dict):
+        cur = {}
+    bak = _USER + ".bak"
+    try:
+        if os.path.isfile(_USER):
+            with open(_USER, encoding="utf-8") as f:
+                old = f.read()
+            with open(bak, "w", encoding="utf-8") as f:
+                f.write(old)
+        merged = _merge(cur, patch or {})
+        tmp = _USER + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(merged, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        os.replace(tmp, _USER)          # 原子替换，写一半断电也不会留半个文件
+        return merged
+    except Exception as e:
+        raise RuntimeError("写 config.json 失败：%s" % e)
+
