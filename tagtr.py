@@ -3,7 +3,7 @@
 """
 tagtr.py —— 人话 → Danbooru tag（可插拔 Provider + 词表校验）
 
-设计要点（来自 GPT 评审，照抄它的判断）：
+设计要点：
     真正的难点不是"接哪个模型"，而是 **LLM 吐出来的东西对不对得上你的词表**。
     模型天然爱说 beautiful girl / pretty eyes，而这些词在 Danbooru 词表里不存在。
     所以 pipeline 必须是：

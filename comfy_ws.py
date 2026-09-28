@@ -45,8 +45,8 @@ MAX_FRAME = 2 * 1024 * 1024
 # 因为 current_node=None 是有意义的（表示当前节点跑完了），不能被过滤掉。
 _UNSET = object()
 
-# 状态只能往前走，不能倒退（GPT 审出来的：terminal 之间互相覆盖会让页面
-# 出现"明明跑完了又变回运行中"这种怪现象）。
+# 状态只能往前走，不能倒退：terminal 之间互相覆盖会让页面
+# 出现"明明跑完了又变回运行中"这种怪现象。
 _ORDER = {"queued": 0, "running": 1, "success": 2, "failed": 2, "cancelled": 2}
 
 
@@ -153,7 +153,7 @@ class _WS:
     def recv(self):
         """收一条完整文本消息。
 
-        处理的协议约束（GPT 审出来的）：分片必须按 TEXT/CONT 顺序、
+        处理的协议约束：分片必须按 TEXT/CONT 顺序、
         控制帧不能分片且 ≤125 字节、帧长度有上限。
         """
         parts = []
