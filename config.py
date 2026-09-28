@@ -28,6 +28,7 @@ DEFAULTS = {
         "endpoint": "",
         "model": "",
         "api_key": "",
+        "api_key_env": "",
         "timeout": 60,
     },
     "prompt_help": {

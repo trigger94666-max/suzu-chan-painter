@@ -402,16 +402,26 @@ class ProgressMonitor:
                 hist = json.loads(r.read().decode())
             for pid, rec in hist.items():
                 st = (rec.get("status") or {})
-                ok = st.get("status_str") == "success" or st.get("completed")
+                sstr = (st.get("status_str") or "").lower()
+                err = self._extract_error(rec)
                 images = self._extract_images(rec)
+                if sstr == "success" or st.get("completed"):
+                    tgt = "success"
+                elif sstr == "error" or err:
+                    tgt = "failed"
+                else:
+                    # history 里有记录、但既没成功也没报错——通常是服务重启或任务被
+                    # 清掉了。这不能当成"执行失败"（会把中断的活儿冤枉成错误），
+                    # 保持现状不动，等 WS 或下一次 resync 给准信。
+                    continue
                 with self._lock:
                     j = self._jobs.get(pid)
-                    if not j or not _can_enter(j.get("status"), "success" if ok else "failed"):
+                    if not j or not _can_enter(j.get("status"), tgt):
                         continue
-                    if ok:
+                    if tgt == "success":
                         _bump(pid, "success", progress=1.0, images=images)
                     else:
-                        _bump(pid, "failed", error=self._extract_error(rec) or "执行失败")
+                        _bump(pid, "failed", error=err or "执行失败")
         except Exception:
             return
 
@@ -485,7 +495,10 @@ class ProgressMonitor:
                 with self._lock:
                     j = self._jobs.get(pid)
                     if j:
-                        j["images"] = list(j.get("images") or []) + imgs
+                        # 断线重连后同一条 executed 可能再次到达：去重保序，
+                        # 否则图墙里同一张图会出现两次。
+                        cur = list(j.get("images") or [])
+                        j["images"] = cur + [x for x in imgs if x not in cur]
                         j["updated"] = time.time()
 
         elif t == "execution_error":
@@ -512,11 +525,16 @@ class ProgressMonitor:
                 j = self._new_job(pid, "", None)
                 self._jobs[pid] = j
                 self._trim()
-            # 状态只许往前走。一旦任务进入终态就整个冻结——
-            # 不能只拦 status：同一条事件里的 progress/step 如果照样写进去，
-            # 就会出现「状态是 success、进度条却退回 50%」这种怪现象。
+            # 终态是整个冻结的：任务一旦进入终态，后续**任何**事件都不许再改它的字段。
+            # ⚠️ 不能只在 kw 带 status 时才判断——不带 status 的事件（executing 的
+            # current_node=None、裸 progress 等）照样能把数据写回去，页面就会出现
+            # 「状态已经 success、进度条却又动起来」这种怪现象。
+            cur = j.get("status")
+            if cur in TERMINAL:
+                return
+            # 状态只许往前走（terminal 之间不许互相覆盖）。
             new_st = kw.get("status")
-            if new_st is not None and not _can_enter(j.get("status"), new_st):
+            if new_st is not None and not _can_enter(cur, new_st):
                 return
             # 用 _UNSET 而不是 None 做过滤：current_node=None 是有意义的（节点跑完）
             j.update({k: v for k, v in kw.items() if v is not _UNSET})

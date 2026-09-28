@@ -9,11 +9,12 @@
   "proxy": "",
   "animadex_url": "https://animadex.net",
   "tag_translator": {
-    "_note": "可选。留空 = 关闭下列两个功能，装上照样跑。想用就填 provider，接一个 key 两件事都能用：①中文描述→英文 tag ②搜中文角色名。也可以直接在网页的「AI 增强」区块里填，会自动写回这个文件。",
+    "_note": "可选。留空 = 关闭下列两个功能，装上照样跑。想用就填 provider，接一个 key 两件事都能用：①中文描述→英文 tag ②搜中文角色名。也可以直接在网页的「AI 增强」区块里填，会自动写回这个文件。key 也可以不写在这里：把 api_key 留空、在环境变量里设 TAGTR_API_KEY（或用 api_key_env 指定别的变量名）更安全。",
     "provider": "",
     "endpoint": "",
     "model": "",
     "api_key": "",
+    "api_key_env": "",
     "timeout": 60
   },
   "prompt_help": {

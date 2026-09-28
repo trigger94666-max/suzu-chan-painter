@@ -828,6 +828,8 @@ function bindTranslate(){
       let msg=`已翻出 ${d.tags.length} 个 tag`;
       if(d.fixed && d.fixed.length) msg += ` · 纠错 ${d.fixed.map(f=>f.from+"→"+f.to).join(" ")}`;
       if(d.dropped && d.dropped.length) msg += ` · 丢弃 ${d.dropped.length} 个（词表里没有）`;
+      // 词表是空的时候一条都没真校验过——必须说出来，不能让人以为结果被验过
+      if(d.validated===false) msg += " · ⚠ 词表为空，未经校验";
       $("#trout").textContent=msg;
     }catch(e){ $("#trout").textContent="失败："+e.message; }
     finally{ btn.disabled=false; }
@@ -835,7 +837,12 @@ function bindTranslate(){
   $("#trtext").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#trgo").click(); } });
   // 探测：配了 provider 才显示
   jget("/api/translate-tags").then(d=>{
-    if(d && d.available){ $("#trbox").hidden=false; $("#trout").textContent=`已接 ${d.provider} · 词表 ${d.vocab} 词`; }
+    if(d && d.available){
+      $("#trbox").hidden=false;
+      $("#trout").textContent = d.vocab
+        ? `已接 ${d.provider} · 词表 ${d.vocab} 词`
+        : `已接 ${d.provider} · ⚠ 词表 0 词（结果不做校验）`;
+    }
   }).catch(()=>{});
 }
 

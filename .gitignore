@@ -20,6 +20,9 @@ characters.json
 # 本地笔记 / 计划
 .hermes/
 
+# UI 设计草稿（本地对比用，不进仓库）
+sketches/
+
 # 词库（走 fetch_tags.py 下载，不进仓库）
 knowledge/
 

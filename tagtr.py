@@ -29,6 +29,7 @@ tagtr.py —— 人话 → Danbooru tag（可插拔 Provider + 词表校验）
 
 import difflib
 import json
+import os
 import re
 import urllib.error
 import urllib.request
@@ -47,12 +48,14 @@ SYSTEM_PROMPT = (
     "Example output: 1girl, long_hair, blue_eyes, white_dress, standing, ocean, beach"
 )
 
-# 这些"垃圾词"模型爱吐但词表里没有，直接扔
-_JUNK = {
+# 这些"垃圾词"模型爱吐但词表里没有，直接扔。
+# ⚠️ 必须先规范化成 tag 形式（空格→下划线）：parse_tags 里是用 _clean_tag 之后的结果
+# 去比对 _JUNK 的，写 "high quality" 永远匹配不到 "high_quality"，过滤会形同虚设。
+_JUNK = {s.replace(" ", "_") for s in {
     "beautiful", "pretty", "cute", "nice", "good", "high quality", "masterpiece",
     "best quality", "detailed", "realistic", "photo", "image", "picture", "art",
     "anime style", "anime", "girl", "woman", "female", "male", "person",
-}
+}}
 
 _SPLIT = re.compile(r"[,，、\n;；]+")
 # 模型爱加序号（"1. xxx 2. yyy"）——先把它当分隔符拆掉
@@ -119,11 +122,25 @@ class Vocabulary:
 
 
 def verify(candidates, vocab, cutoff=0.86):
-    """把候选对齐到词表：命中保留，近似纠错，剩下的丢掉。"""
+    """把候选对齐到词表：命中保留，近似纠错，剩下的丢掉。
+
+    返回 (kept, fixed, dropped, validated)。**validated=False 表示词表是空的、
+    这次一条都没真校验过**——调用方必须把这点告诉用户，别让人以为过滤生效了。
+    """
+    if not len(vocab):
+        # 没词表就没法校验。原样放行（不能把用户的活儿卡死），
+        # 但明确标成"未校验"，而不是静默当成"校验通过"。
+        out, seen0 = [], set()
+        for c in candidates:
+            low0 = str(c).lower()
+            if low0 not in seen0:
+                seen0.add(low0)
+                out.append(c)
+        return out, [], [], False
     kept, fixed, dropped = [], [], []
     seen = set()
     for c in candidates:
-        hit, was_fuzzy = vocab.check(c, cutoff) if len(vocab) else (c, False)
+        hit, was_fuzzy = vocab.check(c, cutoff)
         if hit is None:
             dropped.append(c)
             continue
@@ -134,10 +151,27 @@ def verify(candidates, vocab, cutoff=0.86):
         kept.append(hit)
         if was_fuzzy:
             fixed.append({"from": c, "to": hit})
-    return kept, fixed, dropped
+    return kept, fixed, dropped, True
 
 
 # ───────────────────────── Provider ─────────────────────────
+
+
+# 没写进 config.json 的 key 可以从这个环境变量取——避免明文落盘。
+DEFAULT_KEY_ENV = "TAGTR_API_KEY"
+
+
+def resolve_key(cfg):
+    """取 API key：config.json 里的优先，没有就退回环境变量。
+
+    这样不想把 key 写进文件的人可以设 `TAGTR_API_KEY`（或配置里自定
+    `api_key_env` 指向别的变量名）。
+    """
+    k = (cfg or {}).get("api_key") or ""
+    if k:
+        return k
+    env_name = (cfg or {}).get("api_key_env") or DEFAULT_KEY_ENV
+    return os.environ.get(env_name, "") or ""
 
 
 def _post_json(url, payload, headers=None, timeout=60):
@@ -162,7 +196,7 @@ def _ask_ollama(text, cfg, system=None, temperature=0.2):
 def _ask_openai(text, cfg, system=None, temperature=0.2, base_default="https://api.openai.com/v1"):
     """OpenAI 兼容（也覆盖 DeepSeek / 本地 vLLM / LM Studio 等）。"""
     base = (cfg.get("endpoint") or base_default).rstrip("/")
-    key = cfg.get("api_key") or ""
+    key = resolve_key(cfg)
     d = _post_json(base + "/chat/completions",
                    {"model": cfg.get("model") or "gpt-4o-mini",
                     "messages": [{"role": "system", "content": system or SYSTEM_PROMPT},
@@ -179,7 +213,8 @@ def _ask_http(text, cfg, system=None, temperature=0.2):
     base = (cfg.get("endpoint") or "").rstrip("/")
     if not base:
         raise RuntimeError("http provider 需要 endpoint")
-    headers = {"Authorization": "Bearer " + cfg["api_key"]} if cfg.get("api_key") else {}
+    _hk = resolve_key(cfg)
+    headers = {"Authorization": "Bearer " + _hk} if _hk else {}
     d = _post_json(base, {"text": text, "system": system or SYSTEM_PROMPT},
                    headers=headers, timeout=int(cfg.get("timeout") or 60))
     if isinstance(d.get("tags"), list):
@@ -274,9 +309,10 @@ def translate(text, cfg, vocab, cutoff=0.86):
         return {"ok": False, "err": "provider 出错：%s" % e}
 
     cands = parse_tags(raw)
-    kept, fixed, dropped = verify(cands, vocab, cutoff)
+    kept, fixed, dropped, validated = verify(cands, vocab, cutoff)
     return {"ok": True, "provider": p, "tags": kept, "text": ", ".join(kept),
-            "candidates": cands, "fixed": fixed, "dropped": dropped}
+            "candidates": cands, "fixed": fixed, "dropped": dropped,
+            "validated": validated}
 
 
 # ───────────────────────── 自测 ─────────────────────────
