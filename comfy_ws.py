@@ -125,7 +125,13 @@ class _WS:
     # ---- 底层读写 ----
     def _recv_exact(self, n):
         while len(self._buf) < n:
-            chunk = self.sock.recv(65536)
+            try:
+                chunk = self.sock.recv(65536)
+            except socket.timeout:
+                # 空闲超时不是错误！ComfyUI 在两个事件之间可能静默很久
+                # （VAE 解码、模型换入换出等），把超时当成连接故障会疯狂
+                # 重连，结果一整个任务的 progress 全丢。继续等就是了。
+                continue
             if not chunk:
                 raise ConnectionError("WS closed")
             self._buf += chunk
@@ -235,6 +241,13 @@ class ProgressMonitor:
         self._thread = None
         self._connected = False
         self._last_event = 0.0
+        self._ws = None                     # 当前连接（stop() 用它打断 recv）
+        # ⚠️ client_id 必须**实例唯一且全程不变**，而且 HTTP 提交
+        # （POST /prompt 的 client_id）必须用**同一个值**——
+        # ComfyUI 里 progress 是广播的，但 execution_success / executed
+        # 这些生命周期事件是按 client_id 定向发的。两边对不上，任务跑完
+        # 也收不到"完成"，状态会永远停在 running、也拿不到图片名。
+        self.client_id = uuid.uuid4().hex
 
     # ---- 生命周期 ----
     def start(self):
@@ -247,6 +260,15 @@ class ProgressMonitor:
 
     def stop(self):
         self._stop.set()
+        # 线程可能正阻塞在 recv 里，直接 shutdown 把这次读打断，
+        # 否则要等下一条事件才醒来（可能几十秒）。
+        ws = self._ws
+        if ws is not None:
+            try:
+                if ws.sock:
+                    ws.sock.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
 
     @property
     def connected(self):
@@ -313,8 +335,9 @@ class ProgressMonitor:
         while not self._stop.is_set():
             ws = None                       # connect() 抛异常时 finally 不会 NameError
             try:
-                url = "/ws?clientId=%s" % uuid.uuid4().hex   # 唯一 id，多实例不撞
+                url = "/ws?clientId=%s" % self.client_id   # 固定 id：必须和 HTTP 提交的一致
                 ws = _WS(self.host, self.port, url).connect()
+                self._ws = ws
                 self._connected = True
                 backoff = 1.0
                 self._resync()                     # 重连后校准
@@ -337,6 +360,7 @@ class ProgressMonitor:
                         ws.close()
                     except Exception:
                         pass
+                self._ws = None
         self._connected = False
 
     def _resync(self):
@@ -427,6 +451,23 @@ class ProgressMonitor:
                       progress=(val / mx if mx else 0.0),
                       current_node=d.get("node"))
 
+        elif t == "progress_state":
+            # 新版 ComfyUI 还会发这个：一个 {node_id: {value, max, state}} 的字典。
+            # 注意它的 value/max 是**节点内部**的粒度（很多节点 max=1），
+            # 直接拿来当采样进度会把进度条打回 0——所以这里只用来认"当前在哪个
+            # 节点"，进度数值仍然只信 "progress" 事件（单一真相源）。
+            pid = d.get("prompt_id")
+            nodes = d.get("nodes") or {}
+            cur = None
+            for nid, nd in nodes.items():
+                if isinstance(nd, dict) and nd.get("state") == "running":
+                    cur = nd.get("node_id") or nid
+                    break
+            kw = {"status": "running"}
+            if cur is not None:
+                kw["current_node"] = str(cur)
+            self._set(pid, **kw)
+
         elif t == "executing":
             pid = d.get("prompt_id")
             node = d.get("node")
@@ -471,13 +512,12 @@ class ProgressMonitor:
                 j = self._new_job(pid, "", None)
                 self._jobs[pid] = j
                 self._trim()
-            # 状态只许往前走：防止 /history 校准把已经 success 的任务写回 running
+            # 状态只许往前走。一旦任务进入终态就整个冻结——
+            # 不能只拦 status：同一条事件里的 progress/step 如果照样写进去，
+            # 就会出现「状态是 success、进度条却退回 50%」这种怪现象。
             new_st = kw.get("status")
-            if "status" in kw and not _can_enter(j.get("status"), new_st):
-                kw.pop("status", None)
-                new_st = None
-                if not kw:
-                    return
+            if new_st is not None and not _can_enter(j.get("status"), new_st):
+                return
             # 用 _UNSET 而不是 None 做过滤：current_node=None 是有意义的（节点跑完）
             j.update({k: v for k, v in kw.items() if v is not _UNSET})
             j["updated"] = time.time()

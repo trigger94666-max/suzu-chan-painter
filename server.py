@@ -486,12 +486,14 @@ def submit(batch):
             g = cb.build_graph(spec, "%s_%s" % (prefix, suffix), j.get("prompt", ""), neg,
                                seed, lora, strength, w, h, steps, cfg,
                                lora2=lora2, strength2=strength2, loras=chain)
-            r = cb.post("/prompt", {"prompt": g, "client_id": "suzune-ui"})
+            # client_id 必须和进度监听器的 WS 连接一致，否则收不到
+            # execution_success / executed（ComfyUI 这几个事件是按 client_id 定向发的）
+            m = monitor()
+            cid = m.client_id if m else "suzune-ui"
+            r = cb.post("/prompt", {"prompt": g, "client_id": cid})
             pid = r.get("prompt_id")
-            if pid:
-                m = monitor()
-                if m:
-                    m.track(pid, suffix="%s_%s" % (prefix, suffix), seed=seed)
+            if pid and m:
+                m.track(pid, suffix="%s_%s" % (prefix, suffix), seed=seed)
             ids.append({"suffix": suffix, "seed": seed, "prompt_id": pid})
             time.sleep(1)
     return ids
