@@ -95,21 +95,36 @@ Windows 也可以双击 `start.bat`。然后打开 **http://127.0.0.1:8199**。
 
 ## 「线」是什么
 
-一条**线** = 一套「模型 + CLIP/VAE + 采样参数 + 默认负面词」的组合，定义在 `comfy_batch.py` 的 `LINES` 里。
+一条**线** = 一套「模型 + CLIP/VAE + 采样参数 + 默认负面词」的组合。
 
-仓库自带的几条线**只是示例**，`unet` / `clip` / `vae` 要换成你自己 ComfyUI 里有的文件名：
+仓库自带的那条 `example` **只是占位示例**（模型名是假的，照抄会报「模型不存在」）。**你自己的线写在 `config.json` 的 `lines` 段里**，启动时自动合并进来（同名的覆盖示例线）—— 这样你的模型清单不会进仓库，也不用手改代码。字段说明见下一节。
 
-```python
-LINES = {
-    "mymodel": dict(unet="你的模型.safetensors", unet_node="UNETLoader",
-                    clip="qwen_3_06b_base.safetensors", clip_type="qwen_image",
-                    vae="qwen_image_vae.safetensors", pos_node="CLIPTextEncode",
-                    steps=20, cfg=2.0, sampler="euler", scheduler="simple",
-                    width=832, height=1216, neg=NEG_COMBO),
+LoRA 想显示中文别名，写在自己 `config.json` 的 `lora_meta` 段里（格式 `文件名: [线, 别名, 是否星标]`）；不写就靠文件名规则自动归线。
+
+### 用自己的模型（「线」）
+
+跑图台按「线」（line）组织模型 —— 一条线就是**模型组合 + 采样参数**。仓库里只带一条 **示例线** `example`：模型名是占位的，照抄会报「模型不存在」。
+
+**你自己的线写在 `config.json` 的 `lines` 段里**，启动时自动合并进来（同名的覆盖示例线）：
+
+```json
+"lines": {
+  "my_model": {
+    "ckpt": "my_checkpoint.safetensors",
+    "pos_node": "CLIPTextEncode",
+    "steps": 20, "cfg": 7.0, "sampler": "euler", "scheduler": "normal",
+    "width": 512, "height": 512,
+    "neg": "worst quality, low quality"
+  }
 }
 ```
 
-LoRA 想显示中文别名，写在自己 `config.json` 的 `lora_meta` 段里（格式 `文件名: [线, 别名, 是否星标]`）；不写就靠文件名规则自动归线。
+- `ckpt` 与 `unet` **二选一**：前者是 checkpoint（整包），后者是分离式模型（配 `clip` / `clip_type` / `vae`，还可能要用 `unet_node`，比如 GGUF 用 `UnetLoaderGGUF`）
+- `pos_node` 是正向文本编码的节点名，**各家模型不一样**（SD 系是 `CLIPTextEncode`）
+- `neg` 是该线的默认负面词；另外在 `config.json` 的 `negatives.combo` / `negatives.real` 里可以整体覆盖
+- 字段全表和更多例子见 `comfy_batch.py` 顶部 `LINES` 的注释
+
+这样你的模型清单不会被提交进仓库，也不用手改代码。
 
 ## HTTP API
 

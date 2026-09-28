@@ -1397,7 +1397,28 @@ class Handler(BaseHTTPRequestHandler):
         return self._json({"ok": False, "error": "unknown endpoint"}, 404)
 
 
+class _ExclusiveHTTPServer(ThreadingHTTPServer):
+    """禁止端口复用 —— 别删这个类。
+
+    ⚠️ HTTPServer 默认 allow_reuse_address = 1，而 Windows 上 SO_REUSEADDR
+    的语义跟 Linux 不同：它允许**第二个进程绑同一个端口而不报错**。
+    后果是 start.bat 双击第二下不会提示「已在运行」，会静默多起一个实例，
+    新连接归后起的那个接 —— 调 API 时就会像对着空气说话（真踩过：
+    netstat 里两条 8199 并排 LISTENING）。
+    """
+    allow_reuse_address = False
+
+
 if __name__ == "__main__":
+    try:
+        _srv = _ExclusiveHTTPServer(("127.0.0.1", PORT), Handler)
+    except OSError as e:
+        # 最常见的原因就是端口已经被占（多半是自己已经开了一个）
+        print("启动失败：端口 %d 起不来 —— 跑图台可能已经在运行了。" % PORT, flush=True)
+        print("  · 先确认是不是已经开着：http://127.0.0.1:%d" % PORT, flush=True)
+        print("  · 要重开就先关掉旧的（stop.bat），再跑 start.bat。", flush=True)
+        print("  · 原始错误：%s" % e, flush=True)
+        raise SystemExit(1)
     print("铃酱跑图台 →  http://127.0.0.1:%d" % PORT, flush=True)
     print("ComfyUI:", COMFY, "alive=", comfy_alive(), "| lines:", LINE_NAMES, flush=True)
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    _srv.serve_forever()

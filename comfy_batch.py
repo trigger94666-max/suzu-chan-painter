@@ -51,37 +51,41 @@ NEG_REAL = ("worst quality, low quality, blurry, bad anatomy, bad hands, bad fee
             "cartoon, anime, illustration, painting, 3d render, plastic skin, doll, "
             "text, watermark, signature, child, loli, kid, young")
 
-# 线的定义：模型/CLIP/VAE/编码器类型/采样参数/默认负面
+# ── 线的定义 ──
+# ⚠️ 这里是**示例**，模型名是占位的，照抄会报「模型不存在」。
+#
+# 你自己常用的线写在 config.json 的 "lines" 段里（格式跟下面一样），
+# 启动时会自动合并进来（同名的覆盖示例）。好处：不用改本文件，
+# 也不会把「你机器上装了什么模型」提交进仓库。
+#
+# 单个 line 支持的字段：
+#   ckpt / unet               模型文件名（二选一：ckpt = checkpoint，unet = 分离式）
+#   unet_node                 默认 UNETLoader；GGUF 用 UnetLoaderGGUF
+#   clip / clip_type / vae    分离式模型才需要
+#   pos_node                  正向文本编码节点名（各家模型不一样）
+#   steps / cfg / sampler / scheduler / width / height
+#   neg                       该线的默认负面词
+#   default_lora / default_lora_strength   该线默认挂的 LoRA（可选）
 LINES = {
-    "anima": dict(unet="miaomiaoHarem_anima15.safetensors", unet_node="UNETLoader",
-                  clip="qwen_3_06b_base.safetensors", clip_type="qwen_image",
-                  vae="qwen_image_vae.safetensors", pos_node="CLIPTextEncode",
-                  steps=20, cfg=2.0, sampler="euler", scheduler="simple", auraflow=True,
-                  width=832, height=1216, neg=NEG_COMBO),
-    # 加速线：同 anima 主力模型，但挂 DMD2 加速 LoRA（TURBO_for_ANIMA）→ 8 步 CFG1 出图
-    # 2026-09-19 实测：20步≈40s → 8步 12s（约 3 倍），画质无明显退化。别手动改 steps/cfg，
-    # 这条线不挂 TURBO LoRA 会直接岀垃圾（低步数+低 CFG 必须配 DMD2）。
-    "anima_turbo": dict(unet="miaomiaoHarem_anima15.safetensors", unet_node="UNETLoader",
-                        clip="qwen_3_06b_base.safetensors", clip_type="qwen_image",
-                        vae="qwen_image_vae.safetensors", pos_node="CLIPTextEncode",
-                        steps=8, cfg=1.0, sampler="euler", scheduler="simple", auraflow=True,
-                        width=832, height=1216, neg=NEG_COMBO,
-                        default_lora="TURBO_for_ANIMA_V4.safetensors", default_lora_strength=1.0),
-    "zimage": dict(unet="moodyRealMix_xhsEditionINT8.safetensors", unet_node="UNETLoader",
-                   clip="qwen_3_4b.safetensors", clip_type="stable_diffusion",
-                   vae="ae.safetensors", pos_node="TextEncodeZImageOmni",
-                   steps=10, cfg=1.0, sampler="euler", scheduler="simple",
-                   width=832, height=1216, neg=NEG_REAL),
-    "krea2": dict(unet="redcraftQ2Q8MIXEDVram_v101.gguf", unet_node="UnetLoaderGGUF",
-                  clip="qwen3vl_4b_fp8_scaled.safetensors", clip_type="krea2",
-                  vae="qwen_image_vae.safetensors", pos_node="CLIPTextEncode",
-                  steps=15, cfg=1.0, sampler="euler", scheduler="simple",
-                  width=832, height=1216, neg=NEG_COMBO),
-    "v23": dict(ckpt="oneObsession_v23.safetensors",
-                vae=None, pos_node="CLIPTextEncode",
-                steps=30, cfg=5.0, sampler="euler_ancestral", scheduler="normal",
-                width=1024, height=1536, neg=NEG_COMBO),
+    "example": dict(
+        ckpt="your_model.safetensors",          # ← 换成你 ComfyUI 里真实存在的文件名
+        vae=None,
+        pos_node="CLIPTextEncode",
+        steps=20, cfg=7.0, sampler="euler", scheduler="normal",
+        width=512, height=512,
+        neg=NEG_COMBO),
 }
+
+
+# 把 config.json 里 "lines" 段的自定义线合并进来（同名的覆盖上面的示例）。
+# 放在文件末尾：保证 LINES 已经有内容；只有标准库，读不到也不影响跑。
+try:
+    from config import CFG as _CFG
+    for _n, _spec in (_CFG.get("lines") or {}).items():
+        if isinstance(_spec, dict) and _spec:
+            LINES[_n] = _spec
+except Exception:
+    pass
 
 
 def post(path, data, timeout=120):

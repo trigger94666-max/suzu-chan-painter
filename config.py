@@ -38,6 +38,9 @@ DEFAULTS = {
         "model": "deepseek-v4.1-flash",
         "key_env": "OPENCODE_GO_API_KEY",
     },
+    # 你自己的「线」（模型组合 + 采样参数）。留空则只有 comfy_batch.py 里那条示例线。
+    # 格式见 comfy_batch.py 里 LINES 的注释；这里写的会覆盖同名的示例线。
+    "lines": {},
 }
 
 # 这几个 provider 只是给前端下拉框用的"预设"，用户也可以手填 endpoint
